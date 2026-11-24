@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>TideNative — Fusion 3 × 4 (Style Albâtre + Plus de Vague)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1380px;
+    overflow: hidden;
+    background: #0A0A0C;
+    color: #F5F5F7;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 1920px;
+    height: 1380px;
+    padding: 40px 48px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding-bottom: 20px;
+  }
+  .header-left .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.52);
+    margin-bottom: 6px;
+  }
+  .header-left h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+    color: #FFFFFF;
+  }
+  .header-right {
+    text-align: right;
+    color: rgba(245,245,247,0.56);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .header-right strong {
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 26px;
+    flex: 1;
+  }
+  .card {
+    background: #121215;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .badge-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #FFFFFF;
+    background: rgba(230,51,41,0.16);
+    border: 1px solid rgba(230,51,41,0.45);
+    padding: 4px 11px;
+    border-radius: 999px;
+  }
+  .swatches {
+    display: flex;
+    gap: 7px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.28);
+  }
+  .hero-stage {
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .neutral-showcase {
+    background: #1C1C21;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    height: 236px;
+  }
+  .icon-hero img {
+    width: 212px;
+    height: 212px;
+    display: block;
+  }
+  .side-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .check-box {
+    border-radius: 14px;
+    padding: 12px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .light-surface {
+    background: #E8E8E5;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .sizes-surface {
+    background: #1C1D22;
+    border: 1px solid rgba(255,255,255,0.09);
+  }
+  .check-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: rgba(245,245,247,0.50);
+    margin-bottom: 6px;
+  }
+  .check-label.dark-txt {
+    color: rgba(18,18,22,0.52);
+  }
+  .explorer-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .icon-48 img { width: 54px; height: 54px; display: block; }
+  .exe-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111114;
+  }
+  .exe-sub {
+    font-size: 12px;
+    color: #5C5C66;
+    margin-top: 2px;
+  }
+  .sizes-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 12px;
+    padding-top: 2px;
+  }
+  .sz-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .sz-item span {
+    font-size: 10.5px;
+    color: rgba(245,245,247,0.55);
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-56 img { width: 56px; height: 56px; display: block; }
+  .icon-32 img { width: 32px; height: 32px; display: block; }
+  .icon-20 img { width: 20px; height: 20px; display: block; }
+  .icon-16 img { width: 16px; height: 16px; display: block; }
+
+  .navbar-preview {
+    background: #17171B;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .mono-mark {
+    width: 22px;
+    height: 22px;
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mono-mark svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+  .brand-word {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: #F5F5F7;
+  }
+  .badge-max {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.9px;
+    color: #09090D;
+    background: #FFD432;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .nav-pills {
+    display: flex;
+    gap: 6px;
+  }
+  .pill {
+    font-size: 12px;
+    color: rgba(245,245,247,0.58);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .pill.active {
+    background: rgba(255,255,255,0.14);
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+
+  .card-info h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #FFFFFF;
+  }
+  .card-info .subtitle {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.56);
+    margin-top: 2px;
+    margin-bottom: 6px;
+  }
+  .card-info p {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: rgba(245,245,247,0.74);
+  }
+  .tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 11px;
+    color: rgba(245,245,247,0.82);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="header-left">
+        <div class="eyebrow">FUSION 03 × 04 · STYLE ALBÂTRE & ENCRE NOIRE + PLUS DE VAGUE</div>
+        <h1>TideNative — 4 Déclinaisons « Vague Éditoriale »</h1>
+      </div>
+      <div class="header-right">
+        Tuile blanc albâtre (#F6F6F3) · Encre noire architecturale (#0B0B0D)<br>
+        <strong>Signature point rouge vermillon (#E63329)</strong> · Esprit marque iconique
+      </div>
+    </header>
+    <section class="grid">
+      
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">OPTION A</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3-a-wave-fold.png" alt="Wave Fold"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <path d="M3 15.2C4.2 9.2 6.1 6.2 8.7 6.2c2.4 0 3.5 3.4 4.6 7 1.1 3.6 2.3 5.6 4.6 5.6 2.6 0 4.3-3.1 5.4-9.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="17.8" cy="6.6" r="1.75" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Wave Fold</h2>
+        <div class="subtitle">Ruban de Marée Plié · ADN direct du #3 + Vague ample</div>
+        <p>Un grand ruban de vague fluide à deux courbes en encre noire, doté des incisions blanches sculpturales du #3 et ponctué du point rouge vermillon dans la crête.</p>
+        <div class="tags"><span class="tag">Style exact #3</span><span class="tag">Courbe ample & fluide</span><span class="tag">Très lisible à 16 px</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">OPTION B</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3-b-harmonic-swell.png" alt="Harmonic Swell"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <path d="M 2.20,13.40 L 2.51,13.42 L 2.81,13.37 L 3.12,13.29 L 3.42,13.19 L 3.73,13.08 L 4.04,12.98 L 4.34,12.92 L 4.65,12.90 L 4.96,12.94 L 5.26,13.06 L 5.57,13.24 L 5.88,13.48 L 6.18,13.77 L 6.49,14.07 L 6.79,14.36 L 7.10,14.59 L 7.41,14.74 L 7.71,14.78 L 8.02,14.66 L 8.32,14.38 L 8.63,13.92 L 8.94,13.29 L 9.24,12.80 L 9.55,12.18 L 9.86,11.51 L 10.16,10.83 L 10.47,10.15 L 10.78,9.54 L 11.08,9.02 L 11.39,8.62 L 11.69,8.37 L 12.00,8.28 L 12.31,8.37 L 12.61,8.62 L 12.92,9.02 L 13.22,9.54 L 13.53,10.15 L 13.84,10.83 L 14.14,11.51 L 14.45,12.18 L 14.76,12.80 L 15.06,13.29 L 15.37,13.92 L 15.68,14.38 L 15.98,14.66 L 16.29,14.78 L 16.59,14.74 L 16.90,14.59 L 17.21,14.36 L 17.51,14.07 L 17.82,13.77 L 18.12,13.48 L 18.43,13.24 L 18.74,13.06 L 19.04,12.94 L 19.35,12.90 L 19.66,12.92 L 19.96,12.98 L 20.27,13.08 L 20.58,13.19 L 20.88,13.29 L 21.19,13.37 L 21.49,13.42 L 21.80,13.40" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="14.2" r="1.7" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Harmonic Swell</h2>
+        <div class="subtitle">Impulsion Multi-Vagues · #4 amplifié sur tuile #3</div>
+        <p>L'onde acoustique du #4 enrichie d'oscillations latérales plus amples, traitée en noir d'encre mat sur fond blanc albâtre avec le point rouge logé au cœur de l'arche.</p>
+        <div class="tags"><span class="tag">Fusion directe 3 × 4</span><span class="tag">Multi-crêtes harmoniques</span><span class="tag">Signature audiophile</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">OPTION C</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3-c-twin-tide.png" alt="Twin Tide"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <path d="M 2.60,9.60 L 2.91,8.87 L 3.23,8.54 L 3.54,8.31 L 3.85,8.19 L 4.17,8.17 L 4.48,8.25 L 4.79,8.42 L 5.11,8.69 L 5.42,9.03 L 5.73,9.43 L 6.05,9.89 L 6.36,10.38 L 6.67,10.89 L 6.99,11.38 L 7.30,11.84 L 7.61,12.26 L 7.93,12.61 L 8.24,12.87 L 8.55,13.03 L 8.87,13.09 L 9.18,13.04 L 9.49,12.87 L 9.81,12.59 L 10.12,12.22 L 10.43,11.75 L 10.75,11.20 L 11.06,10.60 L 11.37,9.96 L 11.69,9.31 L 12.00,8.66 L 12.31,8.04 L 12.63,7.47 L 12.94,6.98 L 13.25,6.57 L 13.57,6.26 L 13.88,6.05 L 14.19,5.97 L 14.51,5.99 L 14.82,6.14 L 15.13,6.38 L 15.45,6.72 L 15.76,7.14 L 16.07,7.62 L 16.39,8.14 L 16.70,8.68 L 17.01,9.22 L 17.33,9.73 L 17.64,10.21 L 17.95,10.63 L 18.27,10.98 L 18.58,11.24 L 18.89,11.41 L 19.21,11.49 L 19.52,11.47 L 19.83,11.36 L 20.15,11.18 L 20.46,10.92 L 20.77,10.60 L 21.09,10.22 L 21.40,9.60" stroke="currentColor" stroke-width="2.55" stroke-linecap="round"/>
+  <path d="M 2.60,15.20 L 2.91,14.47 L 3.23,14.14 L 3.54,13.91 L 3.85,13.79 L 4.17,13.77 L 4.48,13.85 L 4.79,14.02 L 5.11,14.29 L 5.42,14.63 L 5.73,15.03 L 6.05,15.49 L 6.36,15.98 L 6.67,16.49 L 6.99,16.98 L 7.30,17.44 L 7.61,17.86 L 7.93,18.21 L 8.24,18.47 L 8.55,18.63 L 8.87,18.69 L 9.18,18.64 L 9.49,18.47 L 9.81,18.19 L 10.12,17.82 L 10.43,17.35 L 10.75,16.80 L 11.06,16.20 L 11.37,15.56 L 11.69,14.91 L 12.00,14.26 L 12.31,13.64 L 12.63,13.07 L 12.94,12.58 L 13.25,12.17 L 13.57,11.86 L 13.88,11.65 L 14.19,11.57 L 14.51,11.59 L 14.82,11.74 L 15.13,11.98 L 15.45,12.32 L 15.76,12.74 L 16.07,13.22 L 16.39,13.74 L 16.70,14.28 L 17.01,14.82 L 17.33,15.33 L 17.64,15.81 L 17.95,16.23 L 18.27,16.58 L 18.58,16.84 L 18.89,17.01 L 19.21,17.09 L 19.52,17.07 L 19.83,16.96 L 20.15,16.78 L 20.46,16.52 L 20.77,16.20 L 21.09,15.82 L 21.40,15.20" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" opacity="0.82"/>
+  <circle cx="17.2" cy="4.8" r="1.75" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Twin Tide</h2>
+        <div class="subtitle">Double Vague Parallèle · Rythme Marée & Écho</div>
+        <p>Deux vagues rythmiques parallèles à plein mouvement en encre noire (onde principale + harmonique inférieure) sur tuile albâtre, signées d'un point rouge au sommet.</p>
+        <div class="tags"><span class="tag">Maximum d'effet vague</span><span class="tag">Rythme graphique fort</span><span class="tag">Esprit Pentagram</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">OPTION D</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3-d-wave-monogram.png" alt="Wave Monogram"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <path d="M2.6 13.8c1.3-3.4 2.5-4.7 4-4.7 1.8 0 2.5 2.6 3.5 5 1 2.4 1.8 4 3.4 4 2 0 2.9-3.6 3.9-8 .8-3.4 1.8-4.8 3.4-4.8 1.2 0 1.9 1.3 2.2 3.4" stroke="currentColor" stroke-width="2.9" stroke-linecap="round"/>
+  <circle cx="6.8" cy="5.8" r="1.75" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Wave Monogram</h2>
+        <div class="subtitle">Vague Ascendante Pliée · Sculpture 3 Temps</div>
+        <p>Une houle ascendante continue (petite crête, creux profond, grande crête) sculptée avec les coupes blanches nettes du #3 et équilibrée par le point rouge Leica.</p>
+        <div class="tags"><span class="tag">Mouvement dynamique</span><span class="tag">Incisions style #3</span><span class="tag">Silhouette unique</span></div>
+      </div>
+    </article>
+    
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[package]
+name = "tidal-app-engine"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+specta = ["dep:specta", "tidal-core/specta"]
+
+[dependencies]
+tidal-core = { path = "../core" }
+tidal-auth = { path = "../tidal-auth" }
+tidal-api = { path = "../tidal-api" }
+tidal-cache = { path = "../cache" }
+tidal-audio-wasapi = { path = "../audio-wasapi" }
+tidal-player = { path = "../player" }
+tidal-platform-win = { path = "../platform-win" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "native-tls", "http2"] }
+specta = { version = "2.0.0-rc.22", features = ["derive"], optional = true }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }

@@ -1,0 +1,26 @@
+TideNative — Client TIDAL Windows 10/11 100 % Natif (Rust + DirectX 12 + WASAPI Exclusif)
+==========================================================================================
+
+Installation rapide :
+  Double-cliquez sur `TideNative-Setup.cmd` (aucun droit administrateur requis).
+  L'application sera installée dans %LOCALAPPDATA%\Programs\TideNative avec un raccourci
+  dans le Menu Démarrer, sur le Bureau, et enregistrée dans Paramètres > Applications.
+
+Utilisation portable :
+  Vous pouvez également lancer `TideNative.exe` directement depuis ce dossier sans installation.
+
+Première connexion TIDAL Hi-Res (24-bit / 192 kHz) :
+  1. Cliquez sur « Se connecter à TIDAL » dans l'application.
+  2. Si le fichier `%LOCALAPPDATA%\TideNative\tidal-credentials.json` n'existe pas encore,
+     l'assistant intégré vous permet d'enregistrer vos clés `pkce_client_id` / `pkce_client_secret`.
+  3. Ouvrez la connexion dans votre navigateur, copiez l'URL de retour
+     `https://tidal.com/android/login/auth?code=...` et cliquez sur « Coller ».
+  4. Votre jeton OAuth2 PKCE est chiffré dans le Gestionnaire d'identification Windows.
+
+Raccourcis clavier :
+  • Espace                : Lecture / Pause
+  • Flèche Gauche/Droite  : Avance / Recul 10 s
+  • Ctrl + Gauche/Droite  : Piste précédente / suivante
+  • Ctrl + K              : Recherche instantanée (SQLite FTS5 + TIDAL)
+  • Échap                 : Fermer la fenêtre modale
+  • Touches multimédia    : Prises en charge nativement via Windows SMTC

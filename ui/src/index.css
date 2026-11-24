@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Variable-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Variable-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Season Mix";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src:
+    local("Season Mix"),
+    local("season-mix"),
+    url("/fonts/SeasonMixVFUprights.woff2") format("woff2-variations"),
+    url("/fonts/SeasonMixVFUprights.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "season-mix";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src:
+    local("Season Mix"),
+    local("season-mix"),
+    url("/fonts/SeasonMixVFUprights.woff2") format("woff2-variations"),
+    url("/fonts/SeasonMixVFUprights.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("/fonts/DMSans-Variable-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("/fonts/DMSans-Variable-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/fonts/PlusJakartaSans-Variable-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/fonts/PlusJakartaSans-Variable-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --color-canvas: #040406;
+  --color-ambient-top: #0a0b0f;
+  --color-elevated: #111116;
+  --color-surface-tint: #0b0d14;
+  --color-glass-pill: rgba(24, 24, 30, 0.88);
+  --color-glass-active: rgba(255, 255, 255, 0.16);
+  --color-active-row: rgba(51, 243, 255, 0.1);
+
+  --color-hairline: rgba(255, 255, 255, 0.08);
+  --color-specular: rgba(255, 255, 255, 0.13);
+  --color-strong-border: rgba(255, 255, 255, 0.22);
+
+  --color-ink-primary: #f5f5f7;
+  --color-ink-secondary: rgba(235, 235, 245, 0.64);
+  --color-ink-muted: rgba(235, 235, 245, 0.4);
+
+  --color-tidal-max: #ffd432;
+  --color-tidal-high: #33f3ff;
+  --color-tidal-low: #a8a8b3;
+  --color-bit-perfect: #30d158;
+  --color-signal-danger: #ff453a;
+
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+}
+
+html[data-ui-font="Default"] {
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html[data-ui-font="SeasonMix"] {
+  --font-sans: "Season Mix", "season-mix", "Inter", "Segoe UI Variable", system-ui, sans-serif;
+}
+
+html[data-ui-font="DmSans"] {
+  --font-sans: "DM Sans", "Inter", "Segoe UI Variable", system-ui, sans-serif;
+}
+
+html[data-ui-font="PlusJakartaSans"] {
+  --font-sans: "Plus Jakarta Sans", "Inter", "Segoe UI Variable", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--color-hairline);
+  }
+
+  html,
+  body,
+  #root {
+    background-color: #040406;
+    color: #f5f5f7;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.glass-surface {
+  background: rgba(18, 18, 24, 0.84);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 20px 50px rgba(0, 0, 0, 0.65);
+}
+
+.card-oled {
+  background: #111116;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Custom minimal dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}

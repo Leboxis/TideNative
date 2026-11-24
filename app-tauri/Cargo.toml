@@ -1,0 +1,33 @@
+[package]
+name = "tidenative-tauri"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "app_tauri"
+crate-type = ["lib"]
+test = false
+
+[[bin]]
+name = "TideNative"
+path = "src/main.rs"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-specta = { version = "2.0.0-rc.21", features = ["derive", "typescript"] }
+specta = { version = "2.0.0-rc.22", features = ["derive"] }
+specta-typescript = "0.0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+tidal-core = { path = "../crates/core", features = ["specta"] }
+tidal-cache = { path = "../crates/cache" }
+tidal-app-engine = { path = "../crates/app-engine", features = ["specta"] }
+tidal-platform-win = { path = "../crates/platform-win" }

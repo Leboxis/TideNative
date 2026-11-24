@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>TideNative — 4 Variantes du Logo 3 (Native Fold)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1380px;
+    overflow: hidden;
+    background: #0A0A0C;
+    color: #F5F5F7;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 1920px;
+    height: 1380px;
+    padding: 40px 48px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding-bottom: 20px;
+  }
+  .header-left .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.52);
+    margin-bottom: 6px;
+  }
+  .header-left h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+    color: #FFFFFF;
+  }
+  .header-right {
+    text-align: right;
+    color: rgba(245,245,247,0.56);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .header-right strong {
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 26px;
+    flex: 1;
+  }
+  .card {
+    background: #121215;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .badge-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #FFFFFF;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    padding: 4px 11px;
+    border-radius: 999px;
+  }
+  .swatches {
+    display: flex;
+    gap: 7px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.28);
+  }
+  .hero-stage {
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .neutral-showcase {
+    background: #1C1C21;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    height: 236px;
+  }
+  .icon-hero img {
+    width: 212px;
+    height: 212px;
+    display: block;
+  }
+  .side-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .check-box {
+    border-radius: 14px;
+    padding: 12px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .light-surface {
+    background: #E8E8E5;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .sizes-surface {
+    background: #1C1D22;
+    border: 1px solid rgba(255,255,255,0.09);
+  }
+  .check-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: rgba(245,245,247,0.50);
+    margin-bottom: 6px;
+  }
+  .check-label.dark-txt {
+    color: rgba(18,18,22,0.52);
+  }
+  .explorer-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .icon-48 img { width: 54px; height: 54px; display: block; }
+  .exe-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111114;
+  }
+  .exe-sub {
+    font-size: 12px;
+    color: #5C5C66;
+    margin-top: 2px;
+  }
+  .sizes-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 12px;
+    padding-top: 2px;
+  }
+  .sz-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .sz-item span {
+    font-size: 10.5px;
+    color: rgba(245,245,247,0.55);
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-56 img { width: 56px; height: 56px; display: block; }
+  .icon-32 img { width: 32px; height: 32px; display: block; }
+  .icon-20 img { width: 20px; height: 20px; display: block; }
+  .icon-16 img { width: 16px; height: 16px; display: block; }
+
+  .navbar-preview {
+    background: #17171B;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .mono-mark {
+    width: 22px;
+    height: 22px;
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mono-mark svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+  .brand-word {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: #F5F5F7;
+  }
+  .badge-max {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.9px;
+    color: #09090D;
+    background: #FFD432;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .nav-pills {
+    display: flex;
+    gap: 6px;
+  }
+  .pill {
+    font-size: 12px;
+    color: rgba(245,245,247,0.58);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .pill.active {
+    background: rgba(255,255,255,0.14);
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+
+  .card-info h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #FFFFFF;
+  }
+  .card-info .subtitle {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.56);
+    margin-top: 2px;
+    margin-bottom: 6px;
+  }
+  .card-info p {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: rgba(245,245,247,0.74);
+  }
+  .tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 11px;
+    color: rgba(245,245,247,0.82);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="header-left">
+        <div class="eyebrow">EXPLORATION CIBLÉE · VARIANTES DU LOGO 03 (NATIVE FOLD)</div>
+        <h1>TideNative — 4 Variantes « Native Fold »</h1>
+      </div>
+      <div class="header-right">
+        Aplats architecturaux tendus · Incisions de pliage nettes · Ponctuation couleur Leica/MAX<br>
+        <strong>Wave Crest · Double Crest · Gold MAX · Obsidian</strong>
+      </div>
+    </header>
+    <section class="grid">
+      
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">VARIANTE 3A</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3a-wave-crest.png" alt="Native Fold · Wave Crest"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3.5 19.4V9.7C3.5 6.3 6 4.2 9.2 4.2c2.4 0 4 1.5 5 4.4.7 2 1.3 3.4 2.2 3.8V4.6h4v9.8c0 3.4-2.5 5.5-5.7 5.5-2.4 0-4-1.5-5-4.4-.7-2-1.3-3.4-2.2-3.8v7.7h-4Z"/>
+  <circle cx="18.4" cy="6.6" r="1.45" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Native Fold · Wave Crest</h2>
+        <div class="subtitle">Le #3 sculpté avec une courbe de vague fluide au centre</div>
+        <p>Reprend exactement la stature architecturale, les coupes blanches nettes et le point rouge du #3, mais infléchit la diagonale centrale en vraie vague tendue.</p>
+        <div class="tags"><span class="tag">Style #3 + Vague tendue</span><span class="tag">Point Rouge (#E63329)</span><span class="tag">Ultra-net en 16 px</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">VARIANTE 3B</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3b-double-crest.png" alt="Native Fold · Double Crest"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M2.5 19V9.8C2.5 6.8 4.5 5 7.2 5c1.8 0 3 1 4 2.9l1.9 3.9V9.8C13.1 6.8 15.1 5 17.8 5c2.5 0 4.2 1.8 4.2 4.6V19h-3.2V9.6c0-1-.6-1.6-1.3-1.6s-1.4.6-1.4 1.8v5.4c0 2.7-1.8 4.4-4.3 4.4-1.7 0-3-1-3.9-2.8L5.7 12.2V19H2.5Z"/>
+  <circle cx="20.4" cy="17.4" r="1.35" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Native Fold · Double Crest</h2>
+        <div class="subtitle">Le #3 étendu en double arche de marée (3 colonnes)</div>
+        <p>Décline la grammaire pliée et les incisions chirurgicales du #3 sur trois piliers enchaînés en double crête rythmique, signés du point vermillon.</p>
+        <div class="tags"><span class="tag">Double vague architecturale</span><span class="tag">Point Rouge (#E63329)</span><span class="tag">Silhouette distinctive</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">VARIANTE 3C</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E5A812"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3c-gold-signature.png" alt="Native Fold · Gold MAX"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M4 19.5V9.2C4 6.4 6.1 4.4 8.9 4.4c2 0 3.5 1 4.8 3l3.2 5V4.6h3.5v10.2c0 2.8-2.1 4.8-4.9 4.8-2 0-3.5-1-4.8-3l-3.2-5v7.9H4Z"/>
+  <circle cx="18.6" cy="6.4" r="1.45" fill="#E5A812"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Native Fold · Gold MAX</h2>
+        <div class="subtitle">Le #3 exact affiné · Accordé à l'Or MAX de TideNative</div>
+        <p>Conserve la géométrie pure et iconique du #3 avec des proportions optimisées, en remplaçant le point rouge par la trace or champagne fidèle à l'interface.</p>
+        <div class="tags"><span class="tag">Géométrie pure du #3</span><span class="tag">Point Or (#E5A812)</span><span class="tag">Harmonie UI TideNative</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">VARIANTE 3D</div>
+        <div class="swatches"><span class="swatch" style="background:#0D0D0F"></span><span class="swatch" style="background:#FFFFFF"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="v3d-obsidian-edition.png" alt="Native Fold · Obsidian"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M4 19.5V9.2C4 6.4 6.1 4.4 8.9 4.4c2 0 3.5 1 4.8 3l3.2 5V4.6h3.5v10.2c0 2.8-2.1 4.8-4.9 4.8-2 0-3.5-1-4.8-3l-3.2-5v7.9H4Z"/>
+  <circle cx="18.6" cy="6.4" r="1.45" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Native Fold · Obsidian</h2>
+        <div class="subtitle">Le #3 inversé en Blanc Optique sur Tuile Noir Mat</div>
+        <p>La version sombre OLED du #3 : même monogramme plié et incisions nettes en blanc pur sur fond noir mat, ponctué de l'emblématique point rouge Leica.</p>
+        <div class="tags"><span class="tag">Tuile Noir Mat OLED</span><span class="tag">Point Rouge (#E63329)</span><span class="tag">Contraste Explorer clair</span></div>
+      </div>
+    </article>
+    
+    </section>
+  </main>
+</body>
+</html>

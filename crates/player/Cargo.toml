@@ -1,0 +1,13 @@
+[package]
+name = "tidal-player"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tidal-core = { path = "../core" }
+tidal-auth = { path = "../tidal-auth" }
+tidal-stream = { path = "../tidal-stream" }
+tidal-decoder = { path = "../decoder" }
+tidal-audio-wasapi = { path = "../audio-wasapi" }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+thiserror = "2"

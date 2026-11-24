@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>TideNative — Direction Noir & Blanc + Trace de Couleur</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1380px;
+    overflow: hidden;
+    background: #0A0A0C;
+    color: #F5F5F7;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 1920px;
+    height: 1380px;
+    padding: 40px 48px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding-bottom: 20px;
+  }
+  .header-left .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.52);
+    margin-bottom: 6px;
+  }
+  .header-left h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+    color: #FFFFFF;
+  }
+  .header-right {
+    text-align: right;
+    color: rgba(245,245,247,0.56);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .header-right strong {
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 26px;
+    flex: 1;
+  }
+  .card {
+    background: #121215;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .badge-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #FFFFFF;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    padding: 4px 11px;
+    border-radius: 999px;
+  }
+  .swatches {
+    display: flex;
+    gap: 7px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.28);
+  }
+  .hero-stage {
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .neutral-showcase {
+    background: #1C1C21;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    height: 236px;
+  }
+  .icon-hero img {
+    width: 212px;
+    height: 212px;
+    display: block;
+  }
+  .side-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .check-box {
+    border-radius: 14px;
+    padding: 12px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .light-surface {
+    background: #EFEFED;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .sizes-surface {
+    background: #1C1D22;
+    border: 1px solid rgba(255,255,255,0.09);
+  }
+  .check-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: rgba(245,245,247,0.50);
+    margin-bottom: 6px;
+  }
+  .check-label.dark-txt {
+    color: rgba(18,18,22,0.52);
+  }
+  .explorer-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .icon-48 img { width: 54px; height: 54px; display: block; }
+  .exe-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111114;
+  }
+  .exe-sub {
+    font-size: 12px;
+    color: #5C5C66;
+    margin-top: 2px;
+  }
+  .sizes-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 12px;
+    padding-top: 2px;
+  }
+  .sz-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .sz-item span {
+    font-size: 10.5px;
+    color: rgba(245,245,247,0.55);
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-56 img { width: 56px; height: 56px; display: block; }
+  .icon-32 img { width: 32px; height: 32px; display: block; }
+  .icon-20 img { width: 20px; height: 20px; display: block; }
+  .icon-16 img { width: 16px; height: 16px; display: block; }
+
+  .navbar-preview {
+    background: #17171B;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .mono-mark {
+    width: 22px;
+    height: 22px;
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mono-mark svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+  .brand-word {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: #F5F5F7;
+  }
+  .badge-max {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.9px;
+    color: #09090D;
+    background: #FFD432;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .nav-pills {
+    display: flex;
+    gap: 6px;
+  }
+  .pill {
+    font-size: 12px;
+    color: rgba(245,245,247,0.58);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .pill.active {
+    background: rgba(255,255,255,0.14);
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+
+  .card-info h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #FFFFFF;
+  }
+  .card-info .subtitle {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.56);
+    margin-top: 2px;
+    margin-bottom: 6px;
+  }
+  .card-info p {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: rgba(245,245,247,0.74);
+  }
+  .tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 11px;
+    color: rgba(245,245,247,0.82);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="header-left">
+        <div class="eyebrow">DIRECTION MARQUE INTEMPORELLE · NOIR & BLANC + TRACE DE COULEUR</div>
+        <h1>TideNative — 4 Logos Style Marque Iconique</h1>
+      </div>
+      <div class="header-right">
+        Zéro effet néon ou sci-fi · Formes géométriques pures dessinables de mémoire<br>
+        <strong>Noir d'encre & Blanc optique</strong> + 1 seule trace de couleur signature
+      </div>
+    </header>
+    <section class="grid">
+      
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">PROPOSITION 01</div>
+        <div class="swatches"><span class="swatch" style="background:#0D0D0F"></span><span class="swatch" style="background:#FFFFFF"></span><span class="swatch" style="background:#F2B824"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="bw-1-crest-t.png" alt="Crest T"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="bw-1-crest-t.png" alt="Crest T"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="bw-1-crest-t.png" alt="Crest T"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="bw-1-crest-t.png" alt="Crest T"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="bw-1-crest-t.png" alt="Crest T"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="bw-1-crest-t.png" alt="Crest T"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 4.5h10.8c3.6 0 5.9 2.1 5.9 5.3 0 1.4-.5 2.5-1.4 3.4-.5-2.5-2-4.7-5-4.7H3v-4Z"/>
+  <rect x="9.6" y="10.2" width="4" height="10" rx="0.4"/>
+  <circle cx="5.4" cy="12.2" r="1.75" fill="#F2B824"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Crest T</h2>
+        <div class="subtitle">Monogramme Architectural · Esprit Braun / B&O</div>
+        <p>Un T sculptural blanc pur dont la barre supérieure s'incurve en crête de marée au-dessus d'un fût géométrique, ponctué d'un seul point or champagne.</p>
+        <div class="tags"><span class="tag">Noir & Blanc pur</span><span class="tag">Trace Or (#F2B824)</span><span class="tag">Statut marque hardware</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">PROPOSITION 02</div>
+        <div class="swatches"><span class="swatch" style="background:#0D0D0F"></span><span class="swatch" style="background:#FFFFFF"></span><span class="swatch" style="background:#F2B824"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="bw-2-tide-cut.png" alt="Tide Cut"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path d="M 2.83,12.25 L 3.07,12.10 L 3.30,11.95 L 3.54,11.79 L 3.77,11.62 L 4.01,11.45 L 4.24,11.28 L 4.48,11.11 L 4.71,10.93 L 4.95,10.76 L 5.19,10.58 L 5.42,10.40 L 5.65,10.22 L 5.89,10.04 L 6.12,9.87 L 6.36,9.69 L 6.59,9.51 L 6.83,9.34 L 7.06,9.17 L 7.30,9.00 L 7.54,8.84 L 7.77,8.68 L 8.00,8.53 L 8.24,8.38 L 8.47,8.23 L 8.71,8.09 L 8.95,7.95 L 9.18,7.83 L 9.41,7.70 L 9.65,7.59 L 9.88,7.48 L 10.12,7.38 L 10.36,7.29 L 10.59,7.20 L 10.82,7.12 L 11.06,7.05 L 11.29,6.99 L 11.53,6.94 L 11.77,6.90 L 12.00,6.86 L 12.23,6.83 L 12.47,6.82 L 12.71,6.81 L 12.94,6.80 L 13.18,6.81 L 13.41,6.83 L 13.65,6.85 L 13.88,6.89 L 14.12,6.93 L 14.35,6.98 L 14.58,7.03 L 14.82,7.10 L 15.05,7.17 L 15.29,7.25 L 15.53,7.33 L 15.76,7.42 L 16.00,7.52 L 16.23,7.63 L 16.47,7.74 L 16.70,7.85 L 16.93,7.97 L 17.17,8.09 L 17.41,8.22 L 17.64,8.35 L 17.88,8.49 L 18.11,8.63 L 18.34,8.77 L 18.58,8.91 L 18.81,9.05 L 19.05,9.19 L 19.28,9.34 L 19.52,9.48 L 19.76,9.62 L 19.99,9.76 L 20.23,9.91 L 20.46,10.04 L 20.70,10.18 L 20.93,10.31 L 21.16,10.44 L 21.27,10.43 L 21.12,9.74 L 20.93,9.06 L 20.68,8.40 L 20.39,7.76 L 20.05,7.14 L 19.66,6.55 L 19.23,5.99 L 18.76,5.47 L 18.25,4.98 L 17.71,4.53 L 17.13,4.12 L 16.53,3.76 L 15.89,3.44 L 15.24,3.18 L 14.57,2.96 L 13.89,2.79 L 13.19,2.68 L 12.49,2.61 L 11.78,2.60 L 11.08,2.65 L 10.38,2.74 L 9.69,2.89 L 9.02,3.09 L 8.36,3.34 L 7.72,3.63 L 7.10,3.98 L 6.51,4.37 L 5.96,4.80 L 5.43,5.27 L 4.95,5.78 L 4.50,6.33 L 4.10,6.91 L 3.74,7.51 L 3.43,8.15 L 3.16,8.80 L 2.95,9.47 L 2.78,10.16 L 2.67,10.85 L 2.61,11.56 L 2.60,12.26 Z" fill="currentColor"/>
+  <path d="M 3.54,16.09 L 3.77,15.92 L 4.01,15.75 L 4.24,15.58 L 4.48,15.41 L 4.71,15.23 L 4.95,15.06 L 5.19,14.88 L 5.42,14.70 L 5.65,14.52 L 5.89,14.34 L 6.12,14.17 L 6.36,13.99 L 6.59,13.81 L 6.83,13.64 L 7.06,13.47 L 7.30,13.30 L 7.54,13.14 L 7.77,12.98 L 8.00,12.83 L 8.24,12.68 L 8.47,12.53 L 8.71,12.39 L 8.95,12.25 L 9.18,12.13 L 9.41,12.00 L 9.65,11.89 L 9.88,11.78 L 10.12,11.68 L 10.36,11.59 L 10.59,11.50 L 10.82,11.42 L 11.06,11.35 L 11.29,11.29 L 11.53,11.24 L 11.77,11.20 L 12.00,11.16 L 12.23,11.13 L 12.47,11.12 L 12.71,11.11 L 12.94,11.10 L 13.18,11.11 L 13.41,11.13 L 13.65,11.15 L 13.88,11.19 L 14.12,11.23 L 14.35,11.28 L 14.58,11.33 L 14.82,11.40 L 15.05,11.47 L 15.29,11.55 L 15.53,11.63 L 15.76,11.72 L 16.00,11.82 L 16.23,11.93 L 16.47,12.04 L 16.70,12.15 L 16.93,12.27 L 17.17,12.39 L 17.41,12.52 L 17.64,12.65 L 17.88,12.79 L 18.11,12.93 L 18.34,13.07 L 18.58,13.21 L 18.81,13.35 L 19.05,13.49 L 19.28,13.64 L 19.52,13.78 L 19.76,13.92 L 19.99,14.06 L 20.23,14.21 L 20.46,14.34 L 20.70,14.48 L 20.93,14.61 L 21.02,14.64 L 20.85,15.18 L 20.64,15.70 L 20.40,16.22 L 20.13,16.71 L 19.83,17.20 L 19.51,17.66 L 19.15,18.10 L 18.77,18.52 L 18.37,18.91 L 17.94,19.28 L 17.49,19.63 L 17.02,19.94 L 16.54,20.23 L 16.03,20.49 L 15.52,20.72 L 14.99,20.91 L 14.44,21.08 L 13.89,21.21 L 13.34,21.30 L 12.78,21.37 L 12.21,21.40 L 11.65,21.39 L 11.08,21.35 L 10.52,21.28 L 9.96,21.18 L 9.42,21.04 L 8.88,20.87 L 8.35,20.66 L 7.84,20.43 L 7.34,20.16 L 6.85,19.87 L 6.39,19.54 L 5.95,19.19 L 5.53,18.81 L 5.13,18.41 L 4.75,17.99 L 4.41,17.54 L 4.09,17.07 L 3.80,16.59 L 3.54,16.09 Z" fill="currentColor"/>
+  <path d="M 3.64,13.87 L 4.08,13.55 L 4.52,13.23 L 4.96,12.90 L 5.40,12.57 L 5.84,12.23 L 6.28,11.90 L 6.72,11.57 L 7.16,11.25 L 7.60,10.95 L 8.04,10.65 L 8.48,10.38 L 8.92,10.12 L 9.36,9.88 L 9.80,9.67 L 10.24,9.48 L 10.68,9.32 L 11.12,9.19 L 11.56,9.08 L 12.00,9.01 L 12.44,8.97 L 12.88,8.95 L 13.32,8.97 L 13.76,9.02 L 14.20,9.09 L 14.64,9.20 L 15.08,9.33 L 15.52,9.48 L 15.96,9.66 L 16.40,9.86 L 16.84,10.07 L 17.28,10.30 L 17.72,10.55 L 18.16,10.81 L 18.60,11.07 L 19.04,11.34 L 19.48,11.61 L 19.92,11.87 L 20.36,12.14 L 20.80,12.39" fill="none" stroke="#F2B824" stroke-width="1.45" stroke-linecap="round"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Tide Cut</h2>
+        <div class="subtitle">Disque Fendu · Kamon Contemporain</div>
+        <p>Un disque blanc monolithique tranché par une onde en espace négatif, traversé d'un unique filet doré. Silhouette immédiate, mémorisable en 1 seconde.</p>
+        <div class="tags"><span class="tag">Symbole universel</span><span class="tag">Trace Or (#F2B824)</span><span class="tag">Indémodable en 16 px</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">PROPOSITION 03</div>
+        <div class="swatches"><span class="swatch" style="background:#F6F6F3"></span><span class="swatch" style="background:#0B0B0D"></span><span class="swatch" style="background:#E63329"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="bw-3-monogram-n.png" alt="Native Fold"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M4 19.5V9.2C4 6.4 6.1 4.4 8.9 4.4c2 0 3.5 1 4.8 3l3.2 5V4.6h3.5v10.2c0 2.8-2.1 4.8-4.9 4.8-2 0-3.5-1-4.8-3l-3.2-5v7.9H4Z"/>
+  <circle cx="18.6" cy="6.4" r="1.4" fill="#E63329"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Native Fold</h2>
+        <div class="subtitle">Éditorial Noir sur Blanc · Esprit Leica / Notion</div>
+        <p>Un monogramme N-onde continu en noir d'encre sur tuile blanc albâtre, découpé au scalpel et signé d'un seul point rouge vermillon façon Leica.</p>
+        <div class="tags"><span class="tag">Tuile claire iconique</span><span class="tag">Trace Rouge (#E63329)</span><span class="tag">Contraste maximal</span></div>
+      </div>
+    </article>
+    
+    <article class="card">
+      <div class="card-top">
+        <div class="badge-num">PROPOSITION 04</div>
+        <div class="swatches"><span class="swatch" style="background:#0D0D0F"></span><span class="swatch" style="background:#FFFFFF"></span><span class="swatch" style="background:#18D8EE"></span></div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="neutral-showcase">
+          <div class="icon-hero"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div>
+        </div>
+        <div class="side-checks">
+          <div class="check-box light-surface">
+            <div class="check-label dark-txt">EXPLORATEUR WINDOWS CLAIR</div>
+            <div class="explorer-row">
+              <div class="icon-48"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div>
+              <div class="exe-meta">
+                <div class="exe-name">TideNative.exe</div>
+                <div class="exe-sub">Application · 18,7 Mo</div>
+              </div>
+            </div>
+          </div>
+          <div class="check-box sizes-surface">
+            <div class="check-label">BARRE DES TÂCHES & ZONE DE NOTIFICATION</div>
+            <div class="sizes-row">
+              <div class="sz-item"><div class="icon-56"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div><span>64 px</span></div>
+              <div class="sz-item"><div class="icon-32"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div><span>32 px</span></div>
+              <div class="sz-item"><div class="icon-20"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div><span>20 px</span></div>
+              <div class="sz-item"><div class="icon-16"><img src="bw-4-pure-pulse.png" alt="Pure Pulse"/></div><span>16 px</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-preview">
+        <div class="nav-brand">
+          <span class="mono-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <path d="M 2.40,14.00 L 2.74,13.94 L 3.09,13.88 L 3.43,13.84 L 3.77,13.82 L 4.11,13.84 L 4.46,13.90 L 4.80,14.02 L 5.14,14.18 L 5.49,14.37 L 5.83,14.57 L 6.17,14.76 L 6.51,14.92 L 6.86,15.01 L 7.20,15.00 L 7.54,14.88 L 7.89,14.62 L 8.23,14.22 L 8.57,13.68 L 8.91,13.00 L 9.26,12.23 L 9.60,11.39 L 9.94,10.52 L 10.29,9.67 L 10.63,8.89 L 10.97,8.23 L 11.31,7.73 L 11.66,7.41 L 12.00,7.31 L 12.34,7.41 L 12.69,7.73 L 13.03,8.23 L 13.37,8.89 L 13.71,9.67 L 14.06,10.52 L 14.40,11.39 L 14.74,12.23 L 15.09,13.00 L 15.43,13.68 L 15.77,14.22 L 16.11,14.62 L 16.46,14.88 L 16.80,15.00 L 17.14,15.01 L 17.49,14.92 L 17.83,14.76 L 18.17,14.57 L 18.51,14.37 L 18.86,14.18 L 19.20,14.02 L 19.54,13.90 L 19.89,13.84 L 20.23,13.82 L 20.57,13.84 L 20.91,13.88 L 21.26,13.94 L 21.60,14.00" stroke="currentColor" stroke-width="2.2" stroke-linecap="butt" stroke-linejoin="round"/>
+  <rect x="8.2" y="18.2" width="7.6" height="1.8" rx="0.4" fill="#18D8EE"/>
+</svg></span>
+          <span class="brand-word">TideNative</span>
+          <span class="badge-max">MAX</span>
+        </div>
+        <div class="nav-pills">
+          <span class="pill active">Écouter</span>
+          <span class="pill">Explorer</span>
+          <span class="pill">Collection</span>
+        </div>
+      </div>
+
+      <div class="card-info">
+        <h2>Pure Pulse</h2>
+        <div class="subtitle">Onde Minimale Suisse · Esprit Dieter Rams</div>
+        <p>L'impulsion parfaite sin(πx)/(πx) ramenée à son essence pure : un seul trait blanc plat sans néon ni effet 3D, souligné d'une fine barre cyan de précision.</p>
+        <div class="tags"><span class="tag">Minimalisme suisse</span><span class="tag">Trace Cyan (#18D8EE)</span><span class="tag">Signature audiophile</span></div>
+      </div>
+    </article>
+    
+    </section>
+  </main>
+</body>
+</html>

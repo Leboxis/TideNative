@@ -1,0 +1,4 @@
+[build]
+# Chemin sans espace ni accent : évite le découpage sur espaces du wrapper
+# x86_64-w64-mingw32-gcc lors du passage du fichier de réponse à ld.
+target-dir = "C:/Users/KEDI-ADMIN/AppData/Local/tidenative-target"

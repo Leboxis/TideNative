@@ -1,0 +1,10 @@
+[package]
+name = "tidal-decoder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tidal-core = { path = "../core" }
+tidal-stream = { path = "../tidal-stream" }
+symphonia = { version = "0.5", default-features = false, features = ["flac", "isomp4", "aac", "mp3", "pcm", "wav", "opt-simd"] }
+thiserror = "2"

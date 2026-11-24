@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/core",
+    "crates/tidal-auth",
+    "crates/tidal-stream",
+    "crates/decoder",
+    "crates/audio-wasapi",
+    "crates/player",
+    "crates/tidal-api",
+    "crates/cache",
+    "crates/platform-win",
+    "crates/app-engine",
+    "app-tauri",
+]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+debug = false
+panic = "unwind" # les threads audio/réseau rattrapent leurs paniques
+
+[profile.dev.package."*"]
+opt-level = 2 # décodage FLAC utilisable en debug

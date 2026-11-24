@@ -1,0 +1,13 @@
+[package]
+name = "tidal-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tidal-core = { path = "../core" }
+tidal-auth = { path = "../tidal-auth" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "native-tls", "http2"] }
+tokio = { version = "1", features = ["sync", "rt", "macros"] }
+thiserror = "2"

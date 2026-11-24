@@ -1,0 +1,16 @@
+/target
+/dist
+/ui/node_modules
+/ui/dist
+/app-tauri/gen/schemas
+/.superpowers
+
+# Credentials, tokens & local runtime state
+tidal-credentials.json
+*.token.json
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

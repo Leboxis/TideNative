@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TideNative — Maquettes Visuelles (4 Choix) · Écouter & Explorer · Endpoints TIDAL Officiels</title>
+<style>
+  :root {
+    --bg: #050507;
+    --surface: #0d0d11;
+    --card: #131318;
+    --card-hover: #1a1a22;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.18);
+    --text: #f5f5f7;
+    --text-2: rgba(235,235,245,0.64);
+    --text-3: rgba(235,235,245,0.40);
+    --tidal-cyan: #33f3ff;
+    --tidal-max: #ffd432;
+    --tidal-green: #30d158;
+    --accent: #ffffff;
+    --radius: 14px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Inter, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -150px, rgba(51,243,255,0.08), transparent 60%), #040406;
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 20px 28px 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Top Studio Toolbar --- */
+  .studio-header {
+    max-width: 1440px;
+    margin: 0 auto 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(18,18,24,0.88);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    backdrop-filter: blur(18px);
+  }
+  .studio-title h1 {
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .studio-title p {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-top: 3px;
+  }
+  .tidal-diamond {
+    display: inline-grid;
+    grid-template-columns: repeat(3, 6px);
+    gap: 2px;
+    align-items: center;
+  }
+  .tidal-diamond span {
+    width: 6px; height: 6px;
+    background: #fff;
+    transform: rotate(45deg);
+    display: block;
+  }
+  .tidal-diamond span.empty { background: transparent; }
+
+  .choice-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .choice-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-2);
+    padding: 8px 13px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms ease;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .choice-btn:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+    background: rgba(255,255,255,0.06);
+  }
+  .choice-btn.active {
+    background: #ffffff;
+    color: #08080b;
+    border-color: #ffffff;
+  }
+  .choice-num {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+  }
+  .choice-btn.active .choice-num {
+    background: rgba(0,0,0,0.14);
+  }
+
+  .controls-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toggle-endpoints {
+    appearance: none;
+    border: 1px solid rgba(51,243,255,0.35);
+    background: rgba(51,243,255,0.09);
+    color: var(--tidal-cyan);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+  .toggle-endpoints.off {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--text-3);
+  }
+
+  /* --- Choice Description Banner --- */
+  .choice-meta {
+    max-width: 1440px;
+    margin: 0 auto 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .choice-meta h2 {
+    font-size: 14px;
+    font-weight: 650;
+  }
+  .choice-meta p {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-top: 2px;
+  }
+  .choice-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .meta-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* --- Desktop App Frame --- */
+  .app-frame {
+    max-width: 1440px;
+    margin: 0 auto;
+    background: #08080b;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 28px 80px rgba(0,0,0,0.68);
+    transition: background 220ms ease;
+  }
+  .app-frame.variant-1 { background: #000000; }
+  .app-frame.variant-2 { background: #09090d; }
+  .app-frame.variant-3 {
+    background: radial-gradient(900px 360px at 22% 0%, rgba(255,212,50,0.08), transparent 62%),
+                radial-gradient(700px 360px at 82% 10%, rgba(51,243,255,0.07), transparent 60%),
+                #0a0a0e;
+  }
+  .app-frame.variant-4 { background: #0b0b0f; }
+
+  /* --- Window Top Navigation --- */
+  .app-topnav {
+    display: grid;
+    grid-template-columns: 220px 1fr 240px;
+    align-items: center;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(12,12,16,0.75);
+    backdrop-filter: blur(18px);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 650;
+  }
+  .nav-pill {
+    justify-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .nav-tab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-2);
+    padding: 7px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+  .nav-tab:hover { color: #fff; }
+  .nav-tab.active {
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+  }
+  .nav-tab.disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .nav-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-pill {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: var(--tidal-cyan);
+    background: rgba(51,243,255,0.10);
+    border: 1px solid rgba(51,243,255,0.28);
+  }
+
+  /* --- Main Viewport --- */
+  .app-body {
+    padding: 24px 32px 26px;
+    min-height: 670px;
+  }
+
+  /* --- Endpoint Inspector Pill --- */
+  .ep-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--tidal-cyan);
+    background: rgba(51,243,255,0.08);
+    border: 1px solid rgba(51,243,255,0.24);
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .ep-badge .method {
+    font-weight: 700;
+    color: #050507;
+    background: var(--tidal-cyan);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  body.hide-endpoints .ep-badge { display: none; }
+
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .section-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+  .section-sub {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .see-all {
+    font-size: 12px;
+    color: var(--text-2);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  /* --- Search Bar --- */
+  .search-wrap {
+    max-width: 700px;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: #141419;
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 14px;
+  }
+  .search-wrap input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 13.5px;
+  }
+  .search-wrap input::placeholder { color: var(--text-3); }
+  .search-chip {
+    font-size: 11px;
+    color: #08080b;
+    background: #fff;
+    padding: 6px 14px;
+    border-radius: 9px;
+    font-weight: 650;
+  }
+
+  /* --- Quality Badges --- */
+  .q-badge {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+  }
+  .q-max {
+    color: var(--tidal-max);
+    background: rgba(255,212,50,0.12);
+    border-color: rgba(255,212,50,0.34);
+  }
+  .q-high {
+    color: var(--tidal-cyan);
+    background: rgba(51,243,255,0.11);
+    border-color: rgba(51,243,255,0.30);
+  }
+
+  /* --- Cards & Artwork --- */
+  .art {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    background: #16161c;
+    border: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .art svg { width: 100%; height: 100%; display: block; }
+  .art .play-fab {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #050507;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: all 160ms ease;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  }
+  .card:hover .play-fab, .hero-card:hover .play-fab {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .card {
+    background: #111116;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 11px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  .card:hover {
+    background: #181820;
+    border-color: rgba(255,255,255,0.19);
+  }
+  .app-frame.variant-3 .card {
+    background: rgba(24,24,32,0.68);
+    backdrop-filter: blur(14px);
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-sub {
+    font-size: 11.5px;
+    color: var(--text-2);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* --- Grids --- */
+  .grid-6 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 15px; margin-bottom: 26px; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 15px; margin-bottom: 26px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 26px; }
+
+  /* --- Spotlight Horizontal Card (Zero monotone flat bg!) --- */
+  .spot-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 12px;
+    background: #121217;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+  .spot-card:hover {
+    background: #191922;
+    border-color: rgba(255,255,255,0.20);
+  }
+  .spot-thumb { width: 66px; height: 66px; }
+  .spot-info { min-width: 0; flex: 1; }
+  .spot-info h4 { font-size: 14.5px; font-weight: 650; margin-top: 4px; }
+  .spot-info p { font-size: 11.5px; color: var(--text-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* --- Genre Media Tile (Thumbnail + Dark Native Surface) --- */
+  .genre-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #111116;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+  .genre-card:hover {
+    background: #1a1a23;
+    border-color: rgba(255,255,255,0.20);
+  }
+  .genre-thumb { width: 52px; height: 52px; border-radius: 8px; }
+  .genre-meta { min-width: 0; flex: 1; }
+  .genre-meta h5 { font-size: 13.5px; font-weight: 600; color: #fff; }
+  .genre-meta p { font-size: 11px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chev { color: var(--text-3); font-size: 16px; }
+
+  /* --- Hero Layouts --- */
+  .hero-editorial {
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+  .hero-banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 22px 24px;
+    border-radius: 16px;
+    background: linear-gradient(120deg, #16161e 0%, #0f0f15 65%, #141820 100%);
+    border: 1px solid rgba(255,255,255,0.11);
+    overflow: hidden;
+  }
+  .hero-art-lg { width: 156px; height: 156px; border-radius: 12px; box-shadow: 0 18px 36px rgba(0,0,0,0.55); }
+  .hero-copy h3 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 6px; }
+  .hero-copy p { font-size: 13px; color: var(--text-2); line-height: 1.45; max-width: 440px; }
+  .hero-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+  .btn-white {
+    background: #fff; color: #050507; border: none; padding: 9px 20px;
+    border-radius: 999px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .btn-ghost {
+    background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.14);
+    padding: 9px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+
+  .hero-side-tracks {
+    background: #111116;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mini-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .mini-track:hover { background: rgba(255,255,255,0.06); }
+  .mini-track .art { width: 38px; height: 38px; border-radius: 7px; }
+  .mini-track .t-meta { flex: 1; min-width: 0; }
+  .mini-track .t-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-track .t-art { font-size: 11px; color: var(--text-2); }
+  .mini-track .t-dur { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+  /* --- Bento Layout (Choice 2) --- */
+  .bento-top {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .bento-mix {
+    background: #121218;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .collage-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    width: 108px;
+    height: 108px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .collage-2x2 .art { border-radius: 4px; border: none; }
+
+  /* --- Pro Split Layout (Choice 4) --- */
+  .pro-split {
+    display: grid;
+    grid-template-columns: 1fr 310px;
+    gap: 20px;
+    align-items: start;
+  }
+  .pro-rail {
+    background: #111116;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .pro-rail h4 { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
+
+  /* --- Bottom Floating Player Dock --- */
+  .player-dock-wrap {
+    padding: 0 28px 18px;
+    display: flex;
+    justify-content: center;
+  }
+  .player-dock {
+    width: 100%;
+    max-width: 920px;
+    background: rgba(24,24,30,0.92);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 22px;
+    padding: 10px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1.25fr 1fr;
+    align-items: center;
+    gap: 16px;
+    backdrop-filter: blur(22px);
+  }
+  .dock-left { display: flex; align-items: center; gap: 11px; }
+  .dock-left .art { width: 44px; height: 44px; border-radius: 8px; }
+  .dock-center { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .dock-progress {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10.5px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar-track {
+    flex: 1; height: 4px; border-radius: 999px;
+    background: rgba(255,255,255,0.15);
+    overflow: hidden;
+  }
+  .bar-fill { width: 38%; height: 100%; background: var(--tidal-cyan); border-radius: 999px; }
+  .dock-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+
+  /* --- Official Endpoint Matrix Footer --- */
+  .endpoint-matrix {
+    max-width: 1440px;
+    margin: 22px auto 0;
+    background: rgba(16,16,22,0.9);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 22px;
+  }
+  .endpoint-matrix h3 {
+    font-size: 14px;
+    font-weight: 650;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .doc-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .doc-links a {
+    font-size: 11px;
+    color: var(--tidal-cyan);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(51,243,255,0.08);
+    border: 1px solid rgba(51,243,255,0.22);
+  }
+  .ep-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .ep-table th, .ep-table td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .ep-table th { color: var(--text-3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .ep-table code { font-family: var(--mono); color: var(--tidal-cyan); font-size: 11.5px; }
+
+  @media (max-width: 1120px) {
+    .grid-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hero-editorial, .bento-top, .pro-split { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="studio-header">
+  <div class="studio-title">
+    <h1>
+      <span class="tidal-diamond"><span></span><span></span><span></span><span class="empty"></span><span></span><span class="empty"></span></span>
+      TideNative — Maquettes Visuelles (4 Choix)
+    </h1>
+    <p>Comparez les 4 directions natives TIDAL pour <strong>Écouter</strong> &amp; <strong>Explorer</strong>, reliées aux endpoints officiels <code>openapi.tidal.com/v2</code></p>
+  </div>
+
+  <div class="choice-bar" id="choiceBar">
+    <button class="choice-btn active" data-choice="1"><span class="choice-num">1</span> TIDAL Native Pure</button>
+    <button class="choice-btn" data-choice="2"><span class="choice-num">2</span> Studio Hi-Res Bento</button>
+    <button class="choice-btn" data-choice="3"><span class="choice-num">3</span> Spatial Obsidian Glass</button>
+    <button class="choice-btn" data-choice="4"><span class="choice-num">4</span> Pro Dense + Radio Rail</button>
+  </div>
+
+  <div class="controls-right">
+    <button class="toggle-endpoints" id="toggleEp">Endpoints TIDAL v2 : ON</button>
+  </div>
+</div>
+
+<div class="choice-meta" id="choiceMeta"></div>
+
+<div class="app-frame variant-1" id="appFrame">
+  <div class="app-topnav">
+    <div class="brand">
+      <span class="tidal-diamond"><span></span><span></span><span></span><span class="empty"></span><span></span><span class="empty"></span></span>
+      TideNative
+    </div>
+    <div class="nav-pill" id="tabPill">
+      <button class="nav-tab active" data-tab="ecouter">Écouter</button>
+      <button class="nav-tab" data-tab="explorer">Explorer</button>
+      <button class="nav-tab disabled">Favoris</button>
+      <button class="nav-tab disabled">Playlists</button>
+      <button class="nav-tab disabled">Réglages</button>
+    </div>
+    <div class="nav-right">
+      <span class="status-pill">WASAPI · 24/192 · MAX</span>
+    </div>
+  </div>
+
+  <div class="app-body" id="appBody"></div>
+
+  <div class="player-dock-wrap">
+    <div class="player-dock">
+      <div class="dock-left">
+        <div class="art" id="dockCover"></div>
+        <div>
+          <div style="font-size:13px;font-weight:650;">Giorgio by Moroder</div>
+          <div style="font-size:11.5px;color:var(--text-2);">Daft Punk · Random Access Memories</div>
+        </div>
+      </div>
+      <div class="dock-center">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span style="color:var(--text-2);font-size:13px;">⏮</span>
+          <span style="width:32px;height:32px;border-radius:999px;background:#fff;color:#050507;display:grid;place-items:center;font-size:12px;font-weight:900;">❚❚</span>
+          <span style="color:var(--text-2);font-size:13px;">⏭</span>
+        </div>
+        <div class="dock-progress">
+          <span>3:28</span>
+          <div class="bar-track"><div class="bar-fill"></div></div>
+          <span>9:04</span>
+        </div>
+      </div>
+      <div class="dock-right">
+        <span class="q-badge q-max">MAX · 24/88.2</span>
+        <span style="font-size:11px;color:var(--tidal-green);font-weight:600;">Seek &lt; 120 ms</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="endpoint-matrix">
+  <h3>
+    <span>Cartographie des endpoints officiels TIDAL OpenAPI v2 (<code>https://openapi.tidal.com/v2</code> · <code>THIRD_PARTY</code>)</span>
+    <div class="doc-links">
+      <a href="https://developer.tidal.com/documentation" target="_blank" rel="noreferrer">Documentation officielle</a>
+      <a href="https://tidal-music.github.io/tidal-api-reference/?accessTier=THIRD_PARTY" target="_blank" rel="noreferrer">API Reference (THIRD_PARTY)</a>
+      <a href="https://tidal-music.github.io/tidal-sdk-web/" target="_blank" rel="noreferrer">TIDAL SDK Web</a>
+    </div>
+  </h3>
+  <table class="ep-table">
+    <thead>
+      <tr>
+        <th>Onglet</th>
+        <th>Bloc d'interface</th>
+        <th>Endpoint officiel TIDAL v2</th>
+        <th>Miniatures &amp; Données incluses</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Écouter</strong></td>
+        <td>Mix quotidiens (My Mix)</td>
+        <td><code>GET /userDailyMixes/{id}?include=items</code></td>
+        <td>Pistes + albums + pochettes haute résolution via <code>/artworks/{id}</code></td>
+      </tr>
+      <tr>
+        <td><strong>Écouter</strong></td>
+        <td>My Discovery Mix</td>
+        <td><code>GET /userDiscoveryMixes/{id}?include=items</code></td>
+        <td>Découvertes personnalisées + tags <code>HIRES_LOSSLESS</code> / <code>LOSSLESS</code></td>
+      </tr>
+      <tr>
+        <td><strong>Écouter</strong></td>
+        <td>Sorties pour vous (New Arrivals)</td>
+        <td><code>GET /userNewReleaseMixes/{id}?include=items</code></td>
+        <td>Nouveautés récentes des artistes suivis avec pochettes carrées</td>
+      </tr>
+      <tr>
+        <td><strong>Écouter</strong></td>
+        <td>Albums &amp; Playlists sauvegardés</td>
+        <td><code>GET /userCollectionAlbums/{id}/relationships/items</code> &amp; <code>/userCollectionPlaylists/{id}/relationships/items</code></td>
+        <td>Accès direct aux albums &amp; playlists favoris de l'utilisateur</td>
+      </tr>
+      <tr>
+        <td><strong>Explorer</strong></td>
+        <td>Recherche &amp; Autocomplétion</td>
+        <td><code>GET /searchSuggestions?filter[query]={q}&amp;include=directHits</code> &amp; <code>GET /searchResults?filter[query]={q}&amp;include=albums,artists,playlists,topHits,tracks</code></td>
+        <td>Résultats instantanés multi-entités avec miniatures d'albums, artistes et playlists</td>
+      </tr>
+      <tr>
+        <td><strong>Explorer</strong></td>
+        <td>Albums similaires &amp; Radio</td>
+        <td><code>GET /albums/{id}/relationships/similarAlbums</code> &amp; <code>GET /tracks/{id}/relationships/similarTracks</code> &amp; <code>GET /artists/{id}/relationships/radio</code></td>
+        <td>Navigation éditoriale continue façon <code>listen.tidal.com/explore</code></td>
+      </tr>
+      <tr>
+        <td><strong>Explorer</strong></td>
+        <td>Miniatures Genres &amp; Catégories</td>
+        <td><code>GET /artworks/{id}</code> + <code>/albums/{id}/relationships/coverArt</code> + <code>/playlists/{id}/relationships/coverArt</code></td>
+        <td>Vraies pochettes TIDAL (320×320 / 640×640) — zéro fond coloré monotone</td>
+      </tr>
+      <tr>
+        <td><strong>Lecture</strong></td>
+        <td>Manifest Hi-Res &amp; Streaming rapide</td>
+        <td><code>GET /trackManifests/{id}?manifestType=MPEG_DASH&amp;formats=FLAC_HIRES,FLAC&amp;usage=PLAYBACK</code></td>
+        <td>MPEG-DASH FLAC 24-bit/192 kHz (init + 1er segment en parallèle, seek Range/cache)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// Générateur de pochettes SVG riches (style pochettes d'albums studio réelles — zéro carré de couleur plate)
+function makeArtwork(seed, title, style) {
+  const palettes = [
+    ["#141923","#2d4366","#e8b95b","#0a0c12"],
+    ["#1b1218","#6a2346","#f26d85","#0c080b"],
+    ["#0e1b1d","#165c68","#47f0ff","#070e10"],
+    ["#1e1710","#704820","#ffd432","#0e0a07"],
+    ["#141322","#3c3480","#a695ff","#0a0912"],
+    ["#121d16","#1d5e3a","#5ef29d","#080e0a"],
+    ["#201414","#7d2a24","#ff8466","#0f0909"],
+    ["#17191e","#444a58","#d8e0ee","#0b0c0f"],
+    ["#1c1421","#5d2870","#e88cff","#0d0810"],
+    ["#101a24","#1f4e78","#6ec4ff","#070c12"],
+    ["#1f1b12","#665322","#f5d97e","#0d0b07"],
+    ["#151d20","#2d636e","#86e8db","#080d0e"],
+  ];
+  const p = palettes[seed % palettes.length];
+  const shapes = [
+    `<circle cx="105" cy="95" r="78" fill="url(#g${seed})" opacity="0.92"/>
+     <circle cx="105" cy="95" r="46" fill="none" stroke="${p[2]}" stroke-opacity="0.45" stroke-width="1.5"/>
+     <circle cx="105" cy="95" r="14" fill="${p[3]}" stroke="${p[2]}" stroke-width="2"/>
+     <path d="M0 150 Q 90 120 200 165 L200 200 L0 200 Z" fill="${p[3]}" opacity="0.72"/>`,
+    `<polygon points="24,175 100,26 176,175" fill="url(#g${seed})" opacity="0.9"/>
+     <polygon points="56,162 100,72 144,162" fill="none" stroke="${p[2]}" stroke-width="2" opacity="0.7"/>
+     <line x1="0" y1="100" x2="200" y2="100" stroke="#fff" stroke-opacity="0.16" stroke-width="1"/>`,
+    `<rect x="26" y="26" width="148" height="148" rx="18" fill="url(#g${seed})" opacity="0.82"/>
+     <circle cx="132" cy="70" r="34" fill="${p[2]}" opacity="0.85"/>
+     <rect x="26" y="122" width="148" height="52" fill="${p[3]}" opacity="0.62"/>
+     <line x1="40" y1="142" x2="140" y2="142" stroke="#fff" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>`,
+    `<path d="M-10 130 C 40 40, 120 180, 210 60 L210 210 L-10 210 Z" fill="url(#g${seed})" opacity="0.9"/>
+     <circle cx="58" cy="60" r="24" fill="${p[2]}" opacity="0.88"/>
+     <circle cx="58" cy="60" r="40" fill="none" stroke="#fff" stroke-opacity="0.18" stroke-width="1"/>`
+  ];
+  const label = (title || "").slice(0, 14).toUpperCase();
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg${seed}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${p[0]}"/>
+        <stop offset="100%" stop-color="${p[3]}"/>
+      </linearGradient>
+      <linearGradient id="g${seed}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${p[2]}"/>
+        <stop offset="100%" stop-color="${p[1]}"/>
+      </linearGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#bg${seed})"/>
+    ${shapes[seed % shapes.length]}
+    <text x="14" y="184" fill="rgba(255,255,255,0.72)" font-family="system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="1.4">${label}</text>
+  </svg>`;
+}
+
+const DATA = {
+  albums: [
+    { seed: 3, title: "Random Access Memories", artist: "Daft Punk", q: "MAX" },
+    { seed: 2, title: "Blonde (Hi-Res)", artist: "Frank Ocean", q: "MAX" },
+    { seed: 0, title: "Kind of Blue", artist: "Miles Davis", q: "MAX" },
+    { seed: 1, title: "SOS (Deluxe)", artist: "SZA", q: "HIGH" },
+    { seed: 4, title: "In Rainbows", artist: "Radiohead", q: "MAX" },
+    { seed: 5, title: "RENAISSANCE", artist: "Beyoncé", q: "MAX" },
+  ],
+  newReleases: [
+    { seed: 6, title: "Midnight Pulse", artist: "Kavinsky", q: "MAX" },
+    { seed: 9, title: "Nocturne IV", artist: "Nils Frahm", q: "MAX" },
+    { seed: 8, title: "Velvet Horizon", artist: "L'Impératrice", q: "HIGH" },
+    { seed: 11, title: "Afterglow Sessions", artist: "Floating Points", q: "MAX" },
+    { seed: 10, title: "Solstice", artist: "Bonobo", q: "MAX" },
+    { seed: 7, title: "Concrete Echoes", artist: "Bicep", q: "HIGH" },
+  ],
+  playlists: [
+    { seed: 2, title: "TIDAL Masters · 24/192", sub: "62 titres · TIDAL", q: "MAX" },
+    { seed: 1, title: "Nouveautés Vendredi", sub: "50 titres · Éditorial", q: "HIGH" },
+    { seed: 4, title: "Late Night Electronic", sub: "48 titres · Ambiance", q: "MAX" },
+    { seed: 0, title: "Audiophile Jazz Club", sub: "40 titres · Hi-Res", q: "MAX" },
+  ],
+  tracks: [
+    { seed: 3, title: "Giorgio by Moroder", artist: "Daft Punk", dur: "9:04", q: "MAX" },
+    { seed: 2, title: "Nights", artist: "Frank Ocean", dur: "5:07", q: "MAX" },
+    { seed: 0, title: "So What", artist: "Miles Davis", dur: "9:22", q: "MAX" },
+    { seed: 4, title: "Weird Fishes / Arpeggi", artist: "Radiohead", dur: "5:18", q: "MAX" },
+    { seed: 9, title: "Says", artist: "Nils Frahm", dur: "8:18", q: "MAX" },
+  ],
+  spotlights: [
+    { seed: 6, badge: "NEW", bcls: "q-high", title: "Nouveautés", sub: "Sorties de la semaine & singles" },
+    { seed: 1, badge: "TOP 20", bcls: "q-high", title: "Top 20 TIDAL", sub: "Titres les plus écoutés" },
+    { seed: 3, badge: "MAX", bcls: "q-max", title: "Hi-Res · MAX", sub: "FLAC 24-bit / 192 kHz natif" },
+    { seed: 4, badge: "MIX", bcls: "q-high", title: "Ambiances", sub: "Focus, Nuit, Détente, Sport" },
+  ],
+  genres: [
+    { seed: 6, title: "Hip-Hop", sub: "Rap, Trap & Classics" },
+    { seed: 1, title: "Pop", sub: "Hits & Pop internationale" },
+    { seed: 2, title: "Électro", sub: "House, Techno, Deep" },
+    { seed: 7, title: "Rock", sub: "Alt, Indie & Classic Rock" },
+    { seed: 8, title: "R&B / Soul", sub: "Contemporain & Neo-Soul" },
+    { seed: 0, title: "Jazz", sub: "Moderne, Vocal & Bebop" },
+    { seed: 9, title: "Classique", sub: "Orchestre, Piano & Hi-Res" },
+    { seed: 5, title: "Français", sub: "Chanson, Rap FR & Pop FR" },
+    { seed: 10, title: "Afrobeats", sub: "Afropop & Amapiano" },
+    { seed: 4, title: "Indie", sub: "Indépendant & Alternatif" },
+    { seed: 11, title: "Bandes originales", sub: "Cinéma, Séries & Jeux" },
+    { seed: 3, title: "Metal", sub: "Heavy, Prog & Metalcore" },
+  ],
+};
+
+const CHOICES = {
+  1: {
+    name: "Choix 1 — TIDAL Native Pure (Éditorial & Carrousels)",
+    desc: "Fidèle au site officiel listen.tidal.com : noir OLED pur (#000), carrousels d'albums carrés avec miniatures nettes et bouton Play au survol, cartes genres illustrées par de vraies pochettes (aucun fond coloré monotone).",
+    tags: ["Noir OLED #000", "Miniatures sur 100 % des cartes", "Structure officielle listen.tidal.com"]
+  },
+  2: {
+    name: "Choix 2 — Audiophile Studio Bento (Hi-Res Showcase)",
+    desc: "Architecture Bento asymétrique centrée sur les Mixes personnalisés TIDAL v2 (collages 2×2 de pochettes pour My Daily Mix, Discovery Mix & New Release Mix) et mise en avant Hi-Res 24-bit/192 kHz.",
+    tags: ["Grille Bento asymétrique", "Collages 2×2 pour Mixes v2", "Focus Hi-Res MAX"]
+  },
+  3: {
+    name: "Choix 3 — Spatial Obsidian Glass (Évolution de votre B4)",
+    desc: "Conserve l'ADN verre obsidienne de TideNative tout en adoptant les codes natifs TIDAL : surfaces translucides sombres, reflets ambrés/cyan ultra-subtils issus des pochettes (zéro bloc monotone) et lecture en 1 clic.",
+    tags: ["Verre obsidienne translucide", "Continuité Maquette B4", "Badges MAX / HIGH natifs"]
+  },
+  4: {
+    name: "Choix 4 — Pro Dense + Rail Radio Temps Réel",
+    desc: "Conçu pour grands écrans Windows : vue catalogue principale à 5 colonnes + panneau latéral dédié aux recommandations similaires (/similarTracks & /radio) qui se met à jour en direct selon la piste jouée.",
+    tags: ["Double colonne desktop", "Rail Radio / Similar Tracks", "Densité optimale"]
+  }
+};
+
+let currentChoice = 1;
+let currentTab = "ecouter";
+
+function ep(method, path) {
+  return `<span class="ep-badge"><span class="method">${method}</span>${path}</span>`;
+}
+
+function playSvg() {
+  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>`;
+}
+
+function albumCard(a) {
+  return `<div class="card">
+    <div class="art">
+      ${makeArtwork(a.seed, a.title)}
+      <div class="play-fab">${playSvg()}</div>
+    </div>
+    <div class="card-title">${a.title}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:3px;">
+      <div class="card-sub" style="margin:0;">${a.artist}</div>
+      <span class="q-badge ${a.q === 'MAX' ? 'q-max' : 'q-high'}">${a.q}</span>
+    </div>
+  </div>`;
+}
+
+function playlistStripCard(p) {
+  return `<div class="spot-card">
+    <div class="art" style="width:54px;height:54px;border-radius:9px;">${makeArtwork(p.seed, p.title)}</div>
+    <div class="spot-info">
+      <div style="font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.title}</div>
+      <p>${p.sub}</p>
+    </div>
+    <span class="q-badge ${p.q === 'MAX' ? 'q-max' : 'q-high'}">${p.q}</span>
+  </div>`;
+}
+
+function renderEcouter(choice) {
+  if (choice === 1) {
+    return `
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Pour vous aujourd'hui</div>
+          ${ep("GET", "/userDailyMixes/{id}?include=items")}
+          ${ep("GET", "/userDiscoveryMixes/{id}?include=items")}
+        </div>
+        <span class="section-sub">Mis à jour automatiquement depuis votre profil TIDAL</span>
+      </div>
+      <div class="hero-editorial">
+        <div class="hero-banner">
+          <div class="art hero-art-lg">${makeArtwork(3, "MY MIX 1")}</div>
+          <div class="hero-copy">
+            <span class="q-badge q-max">MAX · 24-BIT / 192 KHZ</span>
+            <h3>My Daily Discovery</h3>
+            <p>10 titres sélectionnés selon vos écoutes récentes, servis en FLAC Bit-Perfect avec préchargement instantané de la piste suivante.</p>
+            <div class="hero-actions">
+              <button class="btn-white">▶ Écouter</button>
+              <button class="btn-ghost">Aléatoire</button>
+            </div>
+          </div>
+        </div>
+        <div class="hero-side-tracks">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:650;color:var(--text-2);">À suivre dans votre Mix</span>
+            ${ep("GET", "/userDiscoveryMixes/{id}/relationships/items")}
+          </div>
+          ${DATA.tracks.slice(0, 4).map(t => `
+            <div class="mini-track">
+              <div class="art">${makeArtwork(t.seed, t.title)}</div>
+              <div class="t-meta">
+                <div class="t-title">${t.title}</div>
+                <div class="t-art">${t.artist}</div>
+              </div>
+              <span class="q-badge q-max">${t.q}</span>
+              <span class="t-dur">${t.dur}</span>
+            </div>`).join("")}
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Sorties récentes pour vous</div>
+          ${ep("GET", "/userNewReleaseMixes/{id}?include=items")}
+        </div>
+        <a class="see-all" href="javascript:void(0)">Tout voir ›</a>
+      </div>
+      <div class="grid-6">${DATA.newReleases.map(albumCard).join("")}</div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Vos albums &amp; écoutes récentes</div>
+          ${ep("GET", "/userCollectionAlbums/{id}/relationships/items")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.albums.map(albumCard).join("")}</div>
+    `;
+  }
+
+  if (choice === 2) {
+    return `
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Studio Hi-Res · Vos Mixes Personnalisés</div>
+          ${ep("GET", "/userDailyMixes/{id}")}
+          ${ep("GET", "/userDiscoveryMixes/{id}")}
+          ${ep("GET", "/userNewReleaseMixes/{id}")}
+        </div>
+      </div>
+      <div class="bento-top">
+        <div class="hero-banner" style="padding:20px;">
+          <div class="art" style="width:136px;height:136px;">${makeArtwork(0, "STUDIO MAX")}</div>
+          <div class="hero-copy">
+            <span class="q-badge q-max">BIT-PERFECT WASAPI</span>
+            <h3 style="font-size:22px;">Sélection Audiophile</h3>
+            <p>Enchaînement sans coupure avec cache DASH local et démarrage &lt; 180 ms.</p>
+            <div class="hero-actions">
+              <button class="btn-white">▶ Lancer le flux MAX</button>
+            </div>
+          </div>
+        </div>
+        <div class="bento-mix">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div>
+              <span class="q-badge q-high">DAILY MIX</span>
+              <h4 style="font-size:16px;margin-top:6px;">My Daily Discovery</h4>
+              <p style="font-size:11.5px;color:var(--text-2);margin-top:4px;">Renouvelé chaque matin</p>
+            </div>
+            <div class="collage-2x2">
+              <div class="art">${makeArtwork(3,"")}</div><div class="art">${makeArtwork(2,"")}</div>
+              <div class="art">${makeArtwork(4,"")}</div><div class="art">${makeArtwork(1,"")}</div>
+            </div>
+          </div>
+          ${ep("GET", "/userDailyMixes/{id}?include=items")}
+        </div>
+        <div class="bento-mix">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div>
+              <span class="q-badge q-max">NEW ARRIVALS</span>
+              <h4 style="font-size:16px;margin-top:6px;">Nouvelles sorties</h4>
+              <p style="font-size:11.5px;color:var(--text-2);margin-top:4px;">Basé sur vos artistes suivis</p>
+            </div>
+            <div class="collage-2x2">
+              <div class="art">${makeArtwork(6,"")}</div><div class="art">${makeArtwork(9,"")}</div>
+              <div class="art">${makeArtwork(10,"")}</div><div class="art">${makeArtwork(11,"")}</div>
+            </div>
+          </div>
+          ${ep("GET", "/userNewReleaseMixes/{id}?include=items")}
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Bibliothèque récente</div>
+          ${ep("GET", "/userCollectionTracks/{id}/relationships/items")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.albums.map(albumCard).join("")}</div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Vos Playlists synchronisées</div>
+          ${ep("GET", "/userCollectionPlaylists/{id}/relationships/items")}
+        </div>
+      </div>
+      <div class="grid-4">${DATA.playlists.map(playlistStripCard).join("")}</div>
+    `;
+  }
+
+  if (choice === 3) {
+    return `
+      <div class="hero-banner" style="margin-bottom:24px;background:linear-gradient(125deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02));backdrop-filter:blur(18px);">
+        <div class="art hero-art-lg">${makeArtwork(2, "BLONDE")}</div>
+        <div class="hero-copy" style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="q-badge q-max">MAX · FLAC 24/96</span>
+            ${ep("GET", "/userDiscoveryMixes/{id}?include=items")}
+          </div>
+          <h3>Reprendre l'écoute</h3>
+          <p>Interface Spatial Obsidian Glass — cartes translucides sur fond noir profond avec pochettes nettes, sans aucune teinte plate monotone.</p>
+          <div class="hero-actions">
+            <button class="btn-white">▶ Reprendre</button>
+            <button class="btn-ghost">Radio du titre</button>
+          </div>
+        </div>
+        <div style="width:310px;border-left:1px solid var(--border);padding-left:18px;display:flex;flex-direction:column;gap:5px;">
+          ${DATA.tracks.slice(0, 4).map(t => `
+            <div class="mini-track">
+              <div class="art">${makeArtwork(t.seed, t.title)}</div>
+              <div class="t-meta"><div class="t-title">${t.title}</div><div class="t-art">${t.artist}</div></div>
+              <span class="t-dur">${t.dur}</span>
+            </div>`).join("")}
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Écoutes récentes &amp; Découvertes</div>
+          ${ep("GET", "/userNewReleaseMixes/{id}?include=items")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.albums.map(albumCard).join("")}</div>
+
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Playlists &amp; Mixes rapides</div>
+          ${ep("GET", "/userCollectionPlaylists/{id}/relationships/items")}
+        </div>
+      </div>
+      <div class="grid-4">${DATA.playlists.map(playlistStripCard).join("")}</div>
+    `;
+  }
+
+  // Choice 4
+  return `
+    <div class="pro-split">
+      <div>
+        <div class="section-head">
+          <div class="section-title-group">
+            <div class="section-title">Vos Mixes &amp; Sorties</div>
+            ${ep("GET", "/userDailyMixes/{id}")}
+            ${ep("GET", "/userNewReleaseMixes/{id}")}
+          </div>
+        </div>
+        <div class="grid-3">
+          ${DATA.spotlights.slice(0,3).map(s => `
+            <div class="spot-card">
+              <div class="art spot-thumb">${makeArtwork(s.seed, s.title)}</div>
+              <div class="spot-info">
+                <span class="q-badge ${s.bcls}">${s.badge}</span>
+                <h4>${s.title}</h4>
+                <p>${s.sub}</p>
+              </div>
+            </div>`).join("")}
+        </div>
+
+        <div class="section-head">
+          <div class="section-title-group">
+            <div class="section-title">Albums récents</div>
+            ${ep("GET", "/userCollectionAlbums/{id}/relationships/items")}
+          </div>
+        </div>
+        <div class="grid-5">${DATA.albums.slice(0,5).map(albumCard).join("")}</div>
+
+        <div class="section-head">
+          <div class="section-title-group">
+            <div class="section-title">Nouvelles sorties pour vous</div>
+            ${ep("GET", "/userNewReleaseMixes/{id}/relationships/items")}
+          </div>
+        </div>
+        <div class="grid-5">${DATA.newReleases.slice(0,5).map(albumCard).join("")}</div>
+      </div>
+
+      <div class="pro-rail">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h4 style="margin:0;">À découvrir ensuite</h4>
+          <span class="q-badge q-high">RADIO</span>
+        </div>
+        <div style="margin-bottom:10px;">${ep("GET", "/tracks/{id}/relationships/similarTracks")}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${DATA.tracks.map(t => `
+            <div class="mini-track">
+              <div class="art">${makeArtwork(t.seed, t.title)}</div>
+              <div class="t-meta">
+                <div class="t-title">${t.title}</div>
+                <div class="t-art">${t.artist}</div>
+              </div>
+              <span class="t-dur">${t.dur}</span>
+            </div>`).join("")}
+        </div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+          <h4>Artistes similaires</h4>
+          <div style="margin-bottom:10px;">${ep("GET", "/artists/{id}/relationships/similarArtists")}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${["Justice","Air","Parcels","Röyksopp","Caribou","Four Tet"].map(a => `<span class="meta-tag">${a}</span>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderExplorer(choice) {
+  const searchBar = `
+    <div class="search-wrap">
+      <span style="color:var(--text-3);">⌕</span>
+      <input type="text" placeholder="Rechercher un titre, un artiste, un album ou une playlist sur TIDAL…" readonly />
+      ${ep("GET", "/searchSuggestions?filter[query]={q}")}
+      <span class="search-chip">Rechercher</span>
+    </div>`;
+
+  const spotlightsRow = `
+    <div class="section-head">
+      <div class="section-title-group">
+        <div class="section-title">Explorer TIDAL</div>
+        ${ep("GET", "/searchResults?include=albums,playlists,topHits,tracks")}
+        ${ep("GET", "/artworks/{id}")}
+      </div>
+      <span class="section-sub">Miniatures dynamiques · Zéro fond coloré monotone</span>
+    </div>
+    <div class="grid-4">
+      ${DATA.spotlights.map(s => `
+        <div class="spot-card">
+          <div class="art spot-thumb">${makeArtwork(s.seed, s.title)}</div>
+          <div class="spot-info">
+            <span class="q-badge ${s.bcls}">${s.badge}</span>
+            <h4>${s.title}</h4>
+            <p>${s.sub}</p>
+          </div>
+        </div>`).join("")}
+    </div>`;
+
+  const genresGrid = `
+    <div class="section-head">
+      <div class="section-title-group">
+        <div class="section-title">Genres &amp; Ambiances</div>
+        ${ep("GET", "/searchResults?filter[query]={genre}&include=albums,playlists")}
+      </div>
+      <span class="section-sub">Chaque genre illustré par sa miniature officielle</span>
+    </div>
+    <div class="grid-4">
+      ${DATA.genres.map(g => `
+        <div class="genre-card">
+          <div class="art genre-thumb">${makeArtwork(g.seed, g.title)}</div>
+          <div class="genre-meta">
+            <h5>${g.title}</h5>
+            <p>${g.sub}</p>
+          </div>
+          <span class="chev">›</span>
+        </div>`).join("")}
+    </div>`;
+
+  if (choice === 1) {
+    return `
+      ${searchBar}
+      ${spotlightsRow}
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Nouvelles sorties &amp; Albums à la une</div>
+          ${ep("GET", "/userNewReleaseMixes/{id}?include=items")}
+          ${ep("GET", "/albums/{id}/relationships/coverArt")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.newReleases.map(albumCard).join("")}</div>
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Playlists &amp; Mixes sélectionnés</div>
+          ${ep("GET", "/playlists/{id}/relationships/coverArt")}
+        </div>
+      </div>
+      <div class="grid-4">${DATA.playlists.map(playlistStripCard).join("")}</div>
+      ${genresGrid}
+    `;
+  }
+
+  if (choice === 2) {
+    return `
+      ${searchBar}
+      <div class="bento-top">
+        <div class="hero-banner" style="padding:18px 20px;">
+          <div class="art" style="width:128px;height:128px;">${makeArtwork(6, "NEW MUSIC")}</div>
+          <div class="hero-copy">
+            <span class="q-badge q-max">SPOTLIGHT · HI-RES</span>
+            <h3 style="font-size:21px;">Sorties de la semaine</h3>
+            <p>Albums FLAC 24-bit fraîchement publiés sur le catalogue TIDAL.</p>
+            <div style="margin-top:8px;">${ep("GET", "/userNewReleaseMixes/{id}?include=items")}</div>
+          </div>
+        </div>
+        <div class="bento-mix">
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <div>
+              <span class="q-badge q-max">MAX 24/192</span>
+              <h4 style="font-size:15px;margin-top:6px;">Hi-Res Masters</h4>
+              <p style="font-size:11.5px;color:var(--text-2);margin-top:3px;">Qualité studio sans perte</p>
+            </div>
+            <div class="collage-2x2">
+              <div class="art">${makeArtwork(3,"")}</div><div class="art">${makeArtwork(0,"")}</div>
+              <div class="art">${makeArtwork(9,"")}</div><div class="art">${makeArtwork(11,"")}</div>
+            </div>
+          </div>
+          ${ep("GET", "/albums/{id}/relationships/similarAlbums")}
+        </div>
+        <div class="bento-mix">
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <div>
+              <span class="q-badge q-high">PLAYLISTS</span>
+              <h4 style="font-size:15px;margin-top:6px;">Ambiances &amp; Focus</h4>
+              <p style="font-size:11.5px;color:var(--text-2);margin-top:3px;">Sélections éditoriales</p>
+            </div>
+            <div class="collage-2x2">
+              <div class="art">${makeArtwork(4,"")}</div><div class="art">${makeArtwork(8,"")}</div>
+              <div class="art">${makeArtwork(2,"")}</div><div class="art">${makeArtwork(5,"")}</div>
+            </div>
+          </div>
+          ${ep("GET", "/playlists/{id}/relationships/items")}
+        </div>
+      </div>
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Albums recommandés</div>
+          ${ep("GET", "/albums/{id}/relationships/similarAlbums")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.newReleases.map(albumCard).join("")}</div>
+      ${genresGrid}
+    `;
+  }
+
+  if (choice === 3) {
+    return `
+      ${searchBar}
+      ${spotlightsRow}
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-title">Galerie Albums &amp; Masters</div>
+          ${ep("GET", "/searchResults/{id}/relationships/albums")}
+        </div>
+      </div>
+      <div class="grid-6">${DATA.albums.map(albumCard).join("")}</div>
+      ${genresGrid}
+    `;
+  }
+
+  // Choice 4
+  return `
+    ${searchBar}
+    <div class="pro-split">
+      <div>
+        <div class="section-head">
+          <div class="section-title-group">
+            <div class="section-title">Nouveautés &amp; Catalogue</div>
+            ${ep("GET", "/searchResults?include=albums,playlists,tracks")}
+          </div>
+        </div>
+        <div class="grid-5">${DATA.newReleases.slice(0,5).map(albumCard).join("")}</div>
+
+        <div class="section-head">
+          <div class="section-title-group">
+            <div class="section-title">Genres &amp; Ambiances (Miniatures)</div>
+            ${ep("GET", "/artworks/{id}")}
+          </div>
+        </div>
+        <div class="grid-3">
+          ${DATA.genres.slice(0,9).map(g => `
+            <div class="genre-card">
+              <div class="art genre-thumb">${makeArtwork(g.seed, g.title)}</div>
+              <div class="genre-meta"><h5>${g.title}</h5><p>${g.sub}</p></div>
+              <span class="chev">›</span>
+            </div>`).join("")}
+        </div>
+      </div>
+
+      <div class="pro-rail">
+        <h4>Top Titres · Explorer</h4>
+        <div style="margin-bottom:10px;">${ep("GET", "/searchResults/{id}/relationships/topHits")}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${DATA.tracks.map(t => `
+            <div class="mini-track">
+              <div class="art">${makeArtwork(t.seed, t.title)}</div>
+              <div class="t-meta"><div class="t-title">${t.title}</div><div class="t-art">${t.artist}</div></div>
+              <span class="q-badge q-max">${t.q}</span>
+            </div>`).join("")}
+        </div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+          <h4>Playlists à la une</h4>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            ${DATA.playlists.slice(0,3).map(playlistStripCard).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const meta = CHOICES[currentChoice];
+  document.getElementById("choiceMeta").innerHTML = `
+    <div>
+      <h2>${meta.name}</h2>
+      <p>${meta.desc}</p>
+    </div>
+    <div class="choice-tags">${meta.tags.map(t => `<span class="meta-tag">${t}</span>`).join("")}</div>
+  `;
+  const frame = document.getElementById("appFrame");
+  frame.className = `app-frame variant-${currentChoice}`;
+
+  document.getElementById("appBody").innerHTML =
+    currentTab === "ecouter" ? renderEcouter(currentChoice) : renderExplorer(currentChoice);
+  document.getElementById("dockCover").innerHTML = makeArtwork(3, "RAM");
+
+  document.querySelectorAll(".choice-btn").forEach(b => {
+    b.classList.toggle("active", Number(b.dataset.choice) === currentChoice);
+  });
+  document.querySelectorAll(".nav-tab[data-tab]").forEach(t => {
+    t.classList.toggle("active", t.dataset.tab === currentTab);
+  });
+}
+
+document.getElementById("choiceBar").addEventListener("click", (e) => {
+  const btn = e.target.closest(".choice-btn");
+  if (!btn) return;
+  currentChoice = Number(btn.dataset.choice);
+  render();
+});
+
+document.getElementById("tabPill").addEventListener("click", (e) => {
+  const tab = e.target.closest(".nav-tab[data-tab]");
+  if (!tab) return;
+  currentTab = tab.dataset.tab;
+  render();
+});
+
+document.getElementById("toggleEp").addEventListener("click", (e) => {
+  const off = document.body.classList.toggle("hide-endpoints");
+  e.target.classList.toggle("off", off);
+  e.target.textContent = off ? "Endpoints TIDAL v2 : OFF" : "Endpoints TIDAL v2 : ON";
+});
+
+render();
+</script>
+</body>
+</html>
