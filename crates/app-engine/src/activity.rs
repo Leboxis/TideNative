@@ -42,6 +42,7 @@ pub struct ActiveTrackSession {
     pub listened_ms: u64,
     pub persisted_secs: u32,
     pub event_id: Option<i64>,
+    pub insert_in_flight: bool,
 }
 
 #[derive(Debug, Default)]
@@ -109,6 +110,7 @@ impl ActivityState {
             listened_ms: 0,
             persisted_secs: 0,
             event_id: None,
+            insert_in_flight: false,
         });
         now
     }
@@ -145,6 +147,7 @@ impl ActivityState {
             sess.listened_ms = 0;
             sess.persisted_secs = 0;
             sess.event_id = None;
+            sess.insert_in_flight = false;
         }
     }
 
@@ -197,6 +200,7 @@ mod tests {
             duration_secs: 240,
             audio_quality: None,
             explicit: false,
+            dolby_audio: false,
         };
         act.begin_track_session(track);
         assert_eq!(act.record_position_tick(7, 500), 0);

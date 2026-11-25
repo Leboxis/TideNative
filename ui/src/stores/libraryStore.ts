@@ -25,13 +25,16 @@ interface LibraryStore {
   recentTracks: TrackSummary[];
   recentSearches: string[];
   exploreHub: ExploreHubData | null;
+  initialSyncPending: boolean;
   hydrate: (boot: BootstrapState) => void;
   applySync: (payload: LibrarySyncPayload) => void;
+  setInitialSyncPending: (pending: boolean) => void;
   setExploreHub: (hub: ExploreHubData) => void;
   toggleFavoriteTrackLocal: (track: TrackSummary, added: boolean) => void;
   toggleFavoriteAlbumLocal: (albumId: number, album: AlbumSummary | null, added: boolean) => void;
   toggleFavoriteArtistLocal: (artistId: number, artist: ArtistSummary | null, added: boolean) => void;
   addPlaylistLocal: (playlist: PlaylistSummary) => void;
+  updatePlaylistLocal: (playlist: PlaylistSummary) => void;
   removePlaylistLocal: (uuid: string) => void;
 }
 
@@ -49,6 +52,7 @@ export const useLibraryStore = create<LibraryStore>((set) => ({
   recentTracks: [],
   recentSearches: [],
   exploreHub: null,
+  initialSyncPending: false,
 
   hydrate: (boot) =>
     set({
@@ -65,6 +69,8 @@ export const useLibraryStore = create<LibraryStore>((set) => ({
       recentTracks: boot.recent_tracks,
       recentSearches: boot.recent_searches,
       exploreHub: boot.explore_hub,
+      initialSyncPending:
+        boot.authenticated && (boot.discover_tracks.length === 0 || boot.discover_renewal_pending),
     }),
 
   applySync: (payload) =>
@@ -79,7 +85,10 @@ export const useLibraryStore = create<LibraryStore>((set) => ({
       favoriteArtistIds: new Set(payload.favorite_artist_ids),
       userMixes: payload.user_mixes,
       discoverTracks: payload.discover_tracks,
+      initialSyncPending: false,
     }),
+
+  setInitialSyncPending: (initialSyncPending) => set({ initialSyncPending }),
 
   setExploreHub: (exploreHub) => set({ exploreHub }),
 
@@ -134,6 +143,23 @@ export const useLibraryStore = create<LibraryStore>((set) => ({
   addPlaylistLocal: (playlist) =>
     set((state) => ({ playlists: [playlist, ...state.playlists] })),
 
+  updatePlaylistLocal: (playlist) =>
+    set((state) => ({
+      playlists: state.playlists.map((p) => (p.uuid === playlist.uuid ? { ...p, ...playlist } : p)),
+      playlistFolders: state.playlistFolders.map((folder) => ({
+        ...folder,
+        playlists: folder.playlists?.map((p) =>
+          p.uuid === playlist.uuid ? { ...p, ...playlist } : p,
+        ),
+      })),
+    })),
+
   removePlaylistLocal: (uuid) =>
-    set((state) => ({ playlists: state.playlists.filter((p) => p.uuid !== uuid) })),
+    set((state) => ({
+      playlists: state.playlists.filter((p) => p.uuid !== uuid),
+      playlistFolders: state.playlistFolders.map((folder) => ({
+        ...folder,
+        playlists: folder.playlists?.filter((p) => p.uuid !== uuid),
+      })),
+    })),
 }));

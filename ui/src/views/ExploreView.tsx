@@ -1,11 +1,16 @@
-import { Search, X } from "lucide-react";
+import { Play, Radio, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { type HybridSearchResults, type SearchResults, commands } from "@/bindings";
+import { toast } from "sonner";
+import { type HybridSearchResults, type SearchResults, type TopHit, commands } from "@/bindings";
 import { LoginGate } from "@/components/auth/LoginGate";
 import { CoverImage } from "@/components/media/CoverImage";
+import { MediaCard } from "@/components/media/MediaCard";
 import { VirtualTrackList } from "@/components/media/VirtualTrackList";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TrackListSkeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { quickPlayAlbum, quickPlayPlaylist } from "@/lib/quickPlay";
 import { useLibraryStore } from "@/stores/libraryStore";
 import { usePlaybackStore } from "@/stores/playbackStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -89,7 +94,7 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-white">Explorer</h1>
           <p className="text-xs text-white/45 mt-0.5">
-            Catalogue complet TIDAL Hi-Res et recherche hybride instantanée
+            Catalogue TIDAL et recherche hybride instantanée
           </p>
         </div>
 
@@ -116,7 +121,15 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
 
       {/* Hybrid Search Results */}
       {searchResults && query.trim() ? (
-        <Tabs defaultValue="tracks" className="space-y-4">
+        <div className="space-y-5">
+          {searchResults.remote.top_hit && (
+            <TopHitBanner
+              topHit={searchResults.remote.top_hit}
+              onNavigate={navigate}
+            />
+          )}
+
+          <Tabs defaultValue="tracks" className="space-y-4">
           <TabsList>
             <TabsTrigger value="tracks">
               Titres ({searchResults.remote.tracks.length})
@@ -133,30 +146,21 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
           </TabsList>
 
           <TabsContent value="tracks">
-            <div className="h-[460px] flex flex-col">
-              <VirtualTrackList tracks={searchResults.remote.tracks} />
-            </div>
+            <VirtualTrackList tracks={searchResults.remote.tracks} embedded />
           </TabsContent>
 
           <TabsContent value="albums">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {searchResults.remote.albums.map((album) => (
-                <button
+                <MediaCard
                   key={album.id}
-                  type="button"
-                  onClick={() => navigate({ name: "album", albumId: album.id })}
-                  className="card-oled flex flex-col rounded-2xl p-3 text-left hover:border-white/20 transition-colors cursor-pointer"
-                >
-                  <CoverImage
-                    coverId={album.cover_id}
-                    alt={album.title}
-                    size={320}
-                    className="aspect-square w-full mb-3"
-                    rounded="xl"
-                  />
-                  <p className="truncate text-sm font-semibold text-white">{album.title}</p>
-                  <p className="truncate text-xs text-white/45 mt-0.5">{album.artist_name}</p>
-                </button>
+                  coverId={album.cover_id}
+                  title={album.title}
+                  subtitle={album.artist_name}
+                  onOpen={() => navigate({ name: "album", albumId: album.id })}
+                  onQuickPlay={() => void quickPlayAlbum(album.id)}
+                  quickPlayLabel={`Lire l'album ${album.title}`}
+                />
               ))}
             </div>
           </TabsContent>
@@ -186,28 +190,20 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
           <TabsContent value="playlists">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {searchResults.remote.playlists.map((pl) => (
-                <button
+                <MediaCard
                   key={pl.uuid}
-                  type="button"
-                  onClick={() => navigate({ name: "playlist", playlistUuid: pl.uuid })}
-                  className="card-oled flex flex-col rounded-2xl p-3 text-left hover:border-white/20 transition-colors cursor-pointer"
-                >
-                  <CoverImage
-                    coverId={pl.image_id}
-                    alt={pl.title}
-                    size={320}
-                    className="aspect-square w-full mb-3"
-                    rounded="xl"
-                  />
-                  <p className="truncate text-sm font-semibold text-white">{pl.title}</p>
-                  <p className="truncate text-xs text-white/45 mt-0.5">
-                    {pl.number_of_tracks} titres
-                  </p>
-                </button>
+                  coverId={pl.image_id}
+                  title={pl.title}
+                  subtitle={`${pl.number_of_tracks} titres`}
+                  onOpen={() => navigate({ name: "playlist", playlistUuid: pl.uuid })}
+                  onQuickPlay={() => void quickPlayPlaylist(pl.uuid)}
+                  quickPlayLabel={`Lire la playlist ${pl.title}`}
+                />
               ))}
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       ) : (
         <>
           {/* Category Tiles with Real Cover Art */}
@@ -244,9 +240,7 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
             </div>
           </section>
 
-          {loading && (
-            <p className="text-xs text-white/45">Chargement du catalogue TIDAL…</p>
-          )}
+          {loading && <TrackListSkeleton rows={5} />}
 
           {activeCategory && categoryData && (
             <section className="space-y-3">
@@ -260,41 +254,32 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
                     setActiveCategory(null);
                     setCategoryData(null);
                   }}
-                  className="text-xs text-white/45 hover:text-white cursor-pointer"
+                  className="text-xs text-white/60 hover:text-white cursor-pointer"
                 >
                   Fermer
                 </button>
               </div>
-              <div className="h-[380px] flex flex-col">
-                <VirtualTrackList tracks={categoryData.tracks} />
-              </div>
+              <VirtualTrackList tracks={categoryData.tracks} embedded />
             </section>
           )}
 
           {/* Spotlight Albums */}
           {exploreHub && exploreHub.spotlight_albums.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-white/50">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60">
                 Albums à la une
               </h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {exploreHub.spotlight_albums.map((album) => (
-                  <button
+                  <MediaCard
                     key={album.id}
-                    type="button"
-                    onClick={() => navigate({ name: "album", albumId: album.id })}
-                    className="card-oled flex flex-col rounded-2xl p-3 text-left hover:border-white/20 transition-colors cursor-pointer"
-                  >
-                    <CoverImage
-                      coverId={album.cover_id}
-                      alt={album.title}
-                      size={320}
-                      className="aspect-square w-full mb-3"
-                      rounded="xl"
-                    />
-                    <p className="truncate text-sm font-semibold text-white">{album.title}</p>
-                    <p className="truncate text-xs text-white/45 mt-0.5">{album.artist_name}</p>
-                  </button>
+                    coverId={album.cover_id}
+                    title={album.title}
+                    subtitle={album.artist_name}
+                    onOpen={() => navigate({ name: "album", albumId: album.id })}
+                    onQuickPlay={() => void quickPlayAlbum(album.id)}
+                    quickPlayLabel={`Lire l'album ${album.title}`}
+                  />
                 ))}
               </div>
             </section>
@@ -303,16 +288,125 @@ export function ExploreView({ initialQuery = "" }: ExploreViewProps) {
           {/* New Release Tracks */}
           {exploreHub && exploreHub.new_release_tracks.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-white/50">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60">
                 Nouvelles sorties
               </h2>
-              <div className="h-[380px] flex flex-col">
-                <VirtualTrackList tracks={exploreHub.new_release_tracks} />
-              </div>
+              <VirtualTrackList tracks={exploreHub.new_release_tracks} embedded />
             </section>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function TopHitBanner({
+  topHit,
+  onNavigate,
+}: {
+  topHit: TopHit;
+  onNavigate: ReturnType<typeof useUiStore.getState>["navigate"];
+}) {
+  const kindLabel =
+    topHit.kind === "Artist"
+      ? "Artiste"
+      : topHit.kind === "Album"
+        ? "Album"
+        : topHit.kind === "Playlist"
+          ? "Playlist"
+          : "Titre";
+
+  const title =
+    topHit.kind === "Artist" ? topHit.value.name : topHit.value.title;
+
+  const subtitle =
+    topHit.kind === "Track"
+      ? `${topHit.value.artist_name} • ${topHit.value.album_title}`
+      : topHit.kind === "Album"
+        ? `${topHit.value.artist_name}${topHit.value.release_date ? ` • ${topHit.value.release_date.slice(0, 4)}` : ""}`
+        : topHit.kind === "Playlist"
+          ? `${topHit.value.number_of_tracks} titres`
+          : null;
+
+  const coverId =
+    topHit.kind === "Artist"
+      ? topHit.value.picture_id
+      : topHit.kind === "Playlist"
+        ? topHit.value.image_id
+        : topHit.value.cover_id;
+
+  const handleOpen = () => {
+    if (topHit.kind === "Track") {
+      void commands.playTracks([topHit.value], 0);
+    } else if (topHit.kind === "Album") {
+      onNavigate({ name: "album", albumId: topHit.value.id });
+    } else if (topHit.kind === "Artist") {
+      onNavigate({ name: "artist", artistId: topHit.value.id });
+    } else {
+      onNavigate({ name: "playlist", playlistUuid: topHit.value.uuid });
+    }
+  };
+
+  const handleRadio = async () => {
+    const res =
+      topHit.kind === "Track"
+        ? await commands.playTrackRadio(topHit.value.id)
+        : topHit.kind === "Album"
+          ? await commands.playAlbumRadio(topHit.value.id)
+          : topHit.kind === "Artist"
+            ? await commands.playArtistRadio(topHit.value.id)
+            : null;
+    if (res && res.status === "error") toast.error(res.error);
+  };
+
+  return (
+    <section className="space-y-2.5">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">
+        Meilleur résultat
+      </h2>
+      <div className="card-oled flex flex-wrap items-center gap-5 rounded-2xl p-4 border-white/12">
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="shrink-0 cursor-pointer"
+          aria-label={`Ouvrir ${title}`}
+        >
+          <CoverImage
+            coverId={coverId}
+            alt={title}
+            size={320}
+            className="h-20 w-20 shadow-lg"
+            rounded={topHit.kind === "Artist" ? "full" : "xl"}
+          />
+        </button>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#33F3FF]">
+            {kindLabel}
+          </p>
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="block max-w-full truncate text-left text-xl font-bold tracking-tight text-white hover:underline cursor-pointer"
+          >
+            {title}
+          </button>
+          {subtitle && <p className="truncate text-xs text-white/55">{subtitle}</p>}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={handleOpen}>
+            <Play className="h-3.5 w-3.5 fill-current" />
+            {topHit.kind === "Track" ? "Lire" : "Ouvrir"}
+          </Button>
+          {topHit.kind !== "Playlist" && (
+            <Button size="sm" variant="secondary" onClick={() => void handleRadio()}>
+              <Radio className="h-3.5 w-3.5" />
+              Radio
+            </Button>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

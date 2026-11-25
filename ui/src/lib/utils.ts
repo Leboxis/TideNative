@@ -32,3 +32,24 @@ export function qualityTierFromApi(quality: string | null | undefined): TidalQua
   }
   return "LOW";
 }
+
+export function isDolbyAudio(
+  quality: string | null | undefined,
+  codec?: string | null,
+): boolean {
+  const haystack = `${quality ?? ""} ${codec ?? ""}`.toUpperCase();
+  return (
+    haystack.includes("DOLBY") ||
+    haystack.includes("ATMOS") ||
+    haystack.includes("AC4") ||
+    haystack.includes("EC3") ||
+    haystack.includes("EAC3")
+  );
+}
+
+export function hasDolbyAudio(
+  track: { dolby_audio?: boolean; audio_quality?: string | null } | null | undefined,
+): boolean {
+  if (!track) return false;
+  return Boolean(track.dolby_audio || isDolbyAudio(track.audio_quality));
+}

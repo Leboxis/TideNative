@@ -1,69 +1,38 @@
-"use client";
-
 import {
+  Heart,
+  Lock,
   Maximize2,
   Pause,
+  Pin,
+  PinOff,
   Play,
   Repeat,
+  Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
+  Volume2,
+  VolumeX,
+  X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import React, { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { commands } from "@/bindings";
+import { CoverImage } from "@/components/media/CoverImage";
+import { DolbyAudioLogo } from "@/components/media/DolbyAudioLogo";
 import { MatrixOrbCanvas } from "@/components/player/MatrixOrbCanvas";
-import { Button } from "@/components/ui/button";
-import { coverUrl } from "@/lib/covers";
-import { telemetryRuntime } from "@/lib/telemetry";
-import { cn } from "@/lib/utils";
+import { Scrubber } from "@/components/player/Scrubber";
+import { cn, hasDolbyAudio } from "@/lib/utils";
+import { useLibraryStore } from "@/stores/libraryStore";
 import { usePlaybackStore } from "@/stores/playbackStore";
 import { useUiStore } from "@/stores/uiStore";
 
-export const formatTime = (seconds: number = 0) => {
+export const formatTime = (seconds = 0) => {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-};
-
-export const CustomSlider = ({
-  value,
-  onChange,
-  className,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  className?: string;
-}) => {
-  return (
-    <motion.div
-      role="slider"
-      aria-label="Position de lecture"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(value)}
-      tabIndex={0}
-      className={cn(
-        "relative w-full h-1 bg-white/20 rounded-full cursor-pointer",
-        className,
-      )}
-      onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percentage = rect.width > 0 ? (x / rect.width) * 100 : 0;
-        onChange(Math.min(Math.max(percentage, 0), 100));
-      }}
-    >
-      <motion.div
-        className="absolute top-0 left-0 h-full bg-white rounded-full"
-        style={{ width: `${value}%` }}
-        initial={{ width: 0 }}
-        animate={{ width: `${value}%` }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      />
-    </motion.div>
-  );
 };
 
 export interface AudioPlayerProps {
@@ -72,6 +41,7 @@ export interface AudioPlayerProps {
   title?: string;
   showExitButton?: boolean;
   onExitCompact?: () => void;
+  onQuitApp?: () => void;
 }
 
 export const AudioPlayer = ({
@@ -80,6 +50,7 @@ export const AudioPlayer = ({
   title,
   showExitButton = false,
   onExitCompact,
+  onQuitApp,
 }: AudioPlayerProps) => {
   const isStandaloneAudio = src !== undefined;
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -89,132 +60,64 @@ export const AudioPlayer = ({
   const playbackState = usePlaybackStore((s) => s.playbackState);
   const storeDurationMs = usePlaybackStore((s) => s.durationMs);
   const preferences = usePlaybackStore((s) => s.preferences);
+  const isFav = useLibraryStore((s) => (currentTrack ? s.favoriteIds.has(currentTrack.id) : false));
+  const toggleFavoriteLocal = useLibraryStore((s) => s.toggleFavoriteTrackLocal);
   const setCompactMode = useUiStore((s) => s.setCompactMode);
+  const compactAlwaysOnTop = useUiStore((s) => s.compactAlwaysOnTop);
+  const setCompactAlwaysOnTop = useUiStore((s) => s.setCompactAlwaysOnTop);
 
   const [localPlaying, setLocalPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [localTime, setLocalTime] = useState(0);
+  const [localDuration, setLocalDuration] = useState(0);
   const [localShuffle, setLocalShuffle] = useState(false);
   const [localRepeat, setLocalRepeat] = useState(false);
-  const lastQuarterSecRef = useRef(-1);
 
-  const engineDurationSec =
-    storeDurationMs > 0
-      ? storeDurationMs / 1000
-      : (currentTrack?.duration_secs ?? 0);
+  if (isStandaloneAudio && !src) return null;
 
-  useEffect(() => {
-    if (isStandaloneAudio) return;
-
-    const syncFromTelemetry = (posMs: number, durMs: number) => {
-      const effectiveDurMs =
-        durMs > 0
-          ? durMs
-          : storeDurationMs > 0
-            ? storeDurationMs
-            : (currentTrack?.duration_secs ?? 0) * 1000;
-      const posSec = Math.max(0, posMs / 1000);
-      const durSec = Math.max(0, effectiveDurMs / 1000);
-      const pct =
-        effectiveDurMs > 0
-          ? Math.min(100, Math.max(0, (posMs / effectiveDurMs) * 100))
-          : 0;
-      setCurrentTime(posSec);
-      setDuration(durSec);
-      setProgress(Number.isFinite(pct) ? pct : 0);
-    };
-
-    lastQuarterSecRef.current = -1;
-    syncFromTelemetry(telemetryRuntime.positionMs, telemetryRuntime.durationMs);
-
-    return telemetryRuntime.subscribe((meta) => {
-      const quarterSec = Math.floor(meta.positionMs / 250);
-      if (quarterSec !== lastQuarterSecRef.current) {
-        lastQuarterSecRef.current = quarterSec;
-        syncFromTelemetry(meta.positionMs, meta.durationMs);
-      }
-    });
-  }, [isStandaloneAudio, storeDurationMs, currentTrack?.id, currentTrack?.duration_secs]);
-
-  const isPlaying = isStandaloneAudio
-    ? localPlaying
-    : playbackState === "Playing";
-  const isShuffle = isStandaloneAudio
-    ? localShuffle
-    : preferences.shuffle_enabled;
-  const isRepeat = isStandaloneAudio
+  const isPlaying = isStandaloneAudio ? localPlaying : playbackState === "Playing";
+  const isBuffering = !isStandaloneAudio && playbackState === "Buffering";
+  const isShuffle = isStandaloneAudio ? localShuffle : preferences.shuffle_enabled;
+  const repeatMode = isStandaloneAudio
     ? localRepeat
-    : preferences.repeat_mode !== "Off";
+      ? "All"
+      : "Off"
+    : (preferences.repeat_mode ?? "Off");
+  const isRepeat = repeatMode !== "Off";
+  const repeatTitle =
+    repeatMode === "One"
+      ? "Répétition : titre en boucle (cliquer pour désactiver)"
+      : repeatMode === "All"
+        ? "Répétition : toute la file (cliquer pour répéter ce titre)"
+        : "Répétition : désactivée (cliquer pour répéter la file)";
 
-  const resolvedCover =
-    cover ??
-    (!isStandaloneAudio
-      ? (coverUrl(currentTrack?.cover_id, 640) ?? undefined)
-      : undefined);
+  const effectiveDurationMs =
+    storeDurationMs > 0 ? storeDurationMs : (currentTrack?.duration_secs ?? 0) * 1000;
 
-  const resolvedTitle =
-    title ??
-    (!isStandaloneAudio
-      ? currentTrack
-        ? currentTrack.artist_name
-          ? `${currentTrack.artist_name} — ${currentTrack.title}`
-          : currentTrack.title
-        : "Prêt pour l'écoute"
-      : undefined);
-
-  const displayedDuration = isStandaloneAudio ? duration : duration || engineDurationSec;
+  const handleTimeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setLocalTime(audio.currentTime || 0);
+    setLocalDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+  };
 
   const togglePlay = () => {
     if (isStandaloneAudio) {
-      if (audioRef.current) {
-        if (localPlaying) {
-          audioRef.current.pause();
-        } else {
-          void audioRef.current.play();
-        }
-        setLocalPlaying(!localPlaying);
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (localPlaying) {
+        audio.pause();
+      } else {
+        void audio.play();
       }
+      setLocalPlaying(!localPlaying);
       return;
     }
     void commands.togglePlayPause();
   };
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      const nextProgress =
-        (audioRef.current.currentTime / audioRef.current.duration) * 100;
-      setProgress(Number.isFinite(nextProgress) ? nextProgress : 0);
-      setCurrentTime(audioRef.current.currentTime);
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const handleSeek = (value: number) => {
-    if (isStandaloneAudio) {
-      if (audioRef.current && audioRef.current.duration) {
-        const time = (value / 100) * audioRef.current.duration;
-        if (Number.isFinite(time)) {
-          audioRef.current.currentTime = time;
-          setProgress(value);
-        }
-      }
-      return;
-    }
-    const targetDurationSec = displayedDuration;
-    if (targetDurationSec > 0) {
-      const timeSec = (value / 100) * targetDurationSec;
-      if (Number.isFinite(timeSec)) {
-        setProgress(value);
-        setCurrentTime(timeSec);
-        void commands.seekMs(Math.round(timeSec * 1000));
-      }
-    }
-  };
-
   const handleShuffle = () => {
     if (isStandaloneAudio) {
-      setLocalShuffle(!localShuffle);
+      setLocalShuffle((v) => !v);
       return;
     }
     void commands.setShuffle(!preferences.shuffle_enabled);
@@ -222,7 +125,7 @@ export const AudioPlayer = ({
 
   const handleRepeat = () => {
     if (isStandaloneAudio) {
-      setLocalRepeat(!localRepeat);
+      setLocalRepeat((v) => !v);
       return;
     }
     void commands.cycleRepeat();
@@ -240,6 +143,17 @@ export const AudioPlayer = ({
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (isStandaloneAudio || !currentTrack) return;
+    const res = await commands.toggleFavoriteTrack(currentTrack);
+    if (res.status === "ok") {
+      toggleFavoriteLocal(currentTrack, res.data);
+      toast.success(res.data ? "Ajouté aux favoris" : "Retiré des favoris");
+    } else {
+      toast.error(res.error);
+    }
+  };
+
   const handleExit = () => {
     if (onExitCompact) {
       onExitCompact();
@@ -248,218 +162,334 @@ export const AudioPlayer = ({
     }
   };
 
-  if (isStandaloneAudio && !src) return null;
+  const handleQuit = () => {
+    if (onQuitApp) {
+      onQuitApp();
+    } else {
+      void commands.quitApp();
+    }
+  };
+
+  const displayTitle = isStandaloneAudio
+    ? (title ?? "Audio")
+    : (currentTrack?.title ?? "Prêt pour l'écoute");
+  const displaySubtitle = isStandaloneAudio
+    ? null
+    : (currentTrack?.artist_name ?? "WASAPI Bit-Perfect Hi-Res");
 
   return (
-    <AnimatePresence>
-      <motion.div
+    <motion.div
+      data-tauri-drag-region
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        "group relative flex flex-col justify-between overflow-hidden p-3 select-none text-[#f5f5f7]",
+        isStandaloneAudio
+          ? "glass-surface mx-auto w-full max-w-[280px] rounded-3xl"
+          : "h-full w-full bg-[#040406]/85 backdrop-blur-xl",
+      )}
+    >
+      {isStandaloneAudio && (
+        <audio
+          ref={audioRef}
+          onTimeUpdate={handleTimeUpdate}
+          src={src}
+          className="hidden"
+        />
+      )}
+
+      {/* Cover Art */}
+      <div
         data-tauri-drag-region
-        className="group relative flex flex-col mx-auto rounded-3xl overflow-hidden bg-[#11111198] shadow-[0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-sm p-3 w-[280px] h-auto select-none"
-        initial={{ opacity: 0, filter: "blur(10px)" }}
-        animate={{ opacity: 1, filter: "blur(0px)" }}
-        exit={{ opacity: 0, filter: "blur(10px)" }}
-        transition={{
-          duration: 0.3,
-          ease: "easeInOut",
-          delay: 0.1,
-          type: "spring",
-        }}
-        layout
+        className="relative aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-[#111116] shadow-2xl"
       >
-        {isStandaloneAudio && (
-          <audio
-            ref={audioRef}
-            onTimeUpdate={handleTimeUpdate}
-            src={src}
-            className="hidden"
+        {isStandaloneAudio && cover ? (
+          <img
+            data-tauri-drag-region
+            src={cover}
+            alt={displayTitle}
+            draggable={false}
+            className="h-full w-full object-cover"
           />
+        ) : !isStandaloneAudio && currentTrack?.cover_id ? (
+          <CoverImage
+            coverId={currentTrack.cover_id}
+            alt={currentTrack.title}
+            size={640}
+            className="h-full w-full"
+            rounded="2xl"
+          />
+        ) : (
+          <div
+            data-tauri-drag-region
+            className="flex h-full w-full items-center justify-center bg-[#111116]"
+          >
+            <MatrixOrbCanvas
+              active={isPlaying}
+              accentColor={currentPalette.accent}
+              size={72}
+            />
+          </div>
         )}
 
-        <motion.div
-          data-tauri-drag-region
-          className="flex flex-col relative"
-          layout
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        >
-          {/* Cover */}
-          {(resolvedCover || !isStandaloneAudio) && (
-            <motion.div
-              data-tauri-drag-region
-              className="bg-white/20 overflow-hidden rounded-[16px] aspect-square w-full relative"
+        {showExitButton && (
+          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
+            <button
+              type="button"
+              aria-label={
+                compactAlwaysOnTop
+                  ? "Détacher du premier plan"
+                  : "Épingler au premier plan"
+              }
+              aria-pressed={compactAlwaysOnTop}
+              title={
+                compactAlwaysOnTop
+                  ? "Épinglé au premier plan (cliquer pour détacher)"
+                  : "Épingler au premier plan"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                setCompactAlwaysOnTop(!compactAlwaysOnTop);
+              }}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md transition-colors cursor-pointer",
+                compactAlwaysOnTop
+                  ? "border-[#33F3FF]/45 bg-[#0a0b0f]/90 text-[#33F3FF] hover:bg-[#16161d]"
+                  : "border-white/15 bg-[#0a0b0f]/85 text-white/75 hover:bg-[#16161d] hover:text-white",
+              )}
             >
-              {resolvedCover ? (
-                <img
-                  data-tauri-drag-region
-                  src={resolvedCover}
-                  alt="cover"
-                  draggable={false}
-                  className="!object-contain w-full my-0 p-0 !mt-0 border-none !h-full"
-                />
+              {compactAlwaysOnTop ? (
+                <Pin className="h-3.5 w-3.5" />
               ) : (
-                <div
-                  data-tauri-drag-region
-                  className="flex h-full w-full items-center justify-center bg-[#111116]"
-                >
-                  <MatrixOrbCanvas
-                    active={isPlaying}
-                    accentColor={currentPalette.accent}
-                    size={72}
-                  />
-                </div>
+                <PinOff className="h-3.5 w-3.5" />
               )}
+            </button>
+            <button
+              type="button"
+              aria-label="Quitter le mode compact"
+              title="Quitter le mode compact (Échap)"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExit();
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#0a0b0f]/85 text-white/85 hover:bg-[#16161d] hover:text-white backdrop-blur-md transition-colors cursor-pointer"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Fermer l'application"
+              title="Fermer l'application"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQuit();
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#0a0b0f]/85 text-white/75 hover:bg-[#ff453a] hover:border-[#ff453a] hover:text-white backdrop-blur-md transition-colors cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
 
-              {showExitButton && (
-                <button
-                  type="button"
-                  aria-label="Quitter le mode compact"
-                  title="Quitter le mode compact (Échap)"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleExit();
-                  }}
-                  className="absolute top-2 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[#111111d1] text-white/85 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#111111] hover:text-white transition-opacity cursor-pointer"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </motion.div>
+      {/* Track info + quick favorite/mute */}
+      <div className="mt-2.5 flex items-center justify-between gap-2 px-0.5">
+        <div data-tauri-drag-region className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h3
+              data-tauri-drag-region
+              title={displayTitle}
+              className="truncate text-sm font-semibold tracking-tight text-white"
+            >
+              {displayTitle}
+            </h3>
+            {!isStandaloneAudio && hasDolbyAudio(currentTrack) && <DolbyAudioLogo />}
+          </div>
+          {displaySubtitle && (
+            <p
+              data-tauri-drag-region
+              title={displaySubtitle}
+              className="truncate text-xs text-white/65"
+            >
+              {displaySubtitle}
+            </p>
           )}
+        </div>
 
-          <motion.div className="flex flex-col w-full gap-y-2">
-            {/* Title */}
-            {resolvedTitle && (
-              <motion.h3
-                data-tauri-drag-region
-                title={resolvedTitle}
-                className="text-white font-bold text-base text-center mt-1 truncate"
+        {!isStandaloneAudio && (
+          <div className="flex items-center gap-1 shrink-0">
+            {currentTrack && (
+              <button
+                type="button"
+                aria-label={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleToggleFavorite();
+                }}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer",
+                  isFav
+                    ? "text-[#FF2D55] hover:bg-[#FF2D55]/15"
+                    : "text-white/60 hover:bg-white/10 hover:text-white",
+                )}
               >
-                {resolvedTitle}
-              </motion.h3>
+                <Heart className="h-3.5 w-3.5" fill={isFav ? "currentColor" : "none"} />
+              </button>
             )}
+            <button
+              type="button"
+              aria-label={
+                preferences.bit_perfect_lock
+                  ? "Verrouillage Bit-Perfect actif"
+                  : preferences.volume <= 0.005
+                    ? "Rétablir le son"
+                    : "Muet"
+              }
+              disabled={preferences.bit_perfect_lock}
+              onClick={(e) => {
+                e.stopPropagation();
+                void commands.toggleMute();
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-70 transition-colors cursor-pointer"
+            >
+              {preferences.bit_perfect_lock ? (
+                <Lock className="h-3.5 w-3.5 text-[#30D158]" />
+              ) : preferences.volume <= 0.005 ? (
+                <VolumeX className="h-3.5 w-3.5" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
 
-            {/* Slider */}
-            <motion.div className="flex flex-col gap-y-1">
-              <CustomSlider
-                value={progress}
-                onChange={handleSeek}
-                className="w-full"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-white text-sm tabular-nums">
-                  {formatTime(currentTime)}
-                </span>
-                <span className="text-white text-sm tabular-nums">
-                  {formatTime(displayedDuration)}
-                </span>
-              </div>
-            </motion.div>
+      {/* 120 Hz Zero-Re-render Scrubber */}
+      <div className="my-1.5">
+        {isStandaloneAudio ? (
+          <div className="flex items-center gap-2">
+            <span className="w-9 text-right text-[11px] text-white/65 tabular-nums">
+              {formatTime(localTime)}
+            </span>
+            <input
+              type="range"
+              aria-label="Position de lecture"
+              min={0}
+              max={Math.max(1, Math.round(localDuration))}
+              value={Math.round(localTime)}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (audioRef.current) {
+                  audioRef.current.currentTime = next;
+                }
+                setLocalTime(next);
+              }}
+              className="flex-1 accent-[#33F3FF] cursor-pointer"
+            />
+            <span className="w-9 text-left text-[11px] text-white/60 tabular-nums">
+              {formatTime(localDuration)}
+            </span>
+          </div>
+        ) : (
+          <Scrubber
+            durationMs={effectiveDurationMs}
+            accentColor={currentPalette.accent}
+            onSeek={(ms) => void commands.seekMs(ms)}
+            compact
+          />
+        )}
+      </div>
 
-            {/* Controls */}
-            <motion.div className="flex items-center justify-center w-full">
-              <div className="flex items-center gap-2 w-fit bg-[#11111198] rounded-[16px] p-2">
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Aléatoire"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShuffle();
-                    }}
-                    className={cn(
-                      "text-white hover:bg-[#111111d1] hover:text-white h-8 w-8 rounded-full",
-                      isShuffle && "bg-[#111111d1] text-white",
-                    )}
-                  >
-                    <Shuffle className="h-5 w-5" />
-                  </Button>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Piste précédente"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePrev();
-                    }}
-                    className="text-white hover:bg-[#111111d1] hover:text-white h-8 w-8 rounded-full"
-                  >
-                    <SkipBack className="h-5 w-5" />
-                  </Button>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlay();
-                    }}
-                    variant="ghost"
-                    size="icon"
-                    aria-label={isPlaying ? "Pause" : "Lecture"}
-                    className="text-white hover:bg-[#111111d1] hover:text-white h-8 w-8 rounded-full"
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
-                  </Button>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Piste suivante"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleNext();
-                    }}
-                    className="text-white hover:bg-[#111111d1] hover:text-white h-8 w-8 rounded-full"
-                  >
-                    <SkipForward className="h-5 w-5" />
-                  </Button>
-                </motion.div>
+      {/* Transport Controls */}
+      <div className="flex items-center justify-center">
+        <div className="glass-surface flex items-center gap-1.5 rounded-full px-2.5 py-1.5">
+          <button
+            type="button"
+            aria-label="Aléatoire"
+            aria-pressed={isShuffle}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleShuffle();
+            }}
+            className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer",
+              isShuffle
+                ? "bg-[#33F3FF]/15 text-[#33F3FF]"
+                : "text-white/65 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+          </button>
 
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Répétition"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRepeat();
-                    }}
-                    className={cn(
-                      "text-white hover:bg-[#111111d1] hover:text-white h-8 w-8 rounded-full",
-                      isRepeat && "bg-[#111111d1] text-white",
-                    )}
-                  >
-                    <Repeat className="h-5 w-5" />
-                  </Button>
-                </motion.div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+          <button
+            type="button"
+            aria-label="Piste précédente"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrev();
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          >
+            <SkipBack className="h-4 w-4 fill-current" />
+          </button>
+
+          <button
+            type="button"
+            aria-label={isPlaying ? "Pause" : "Lecture"}
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay();
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#050507] hover:bg-[#e8e8ec] active:scale-95 transition-transform duration-150 cursor-pointer"
+          >
+            {isBuffering ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#050507]/30 border-t-[#050507]" />
+            ) : isPlaying ? (
+              <Pause className="h-4 w-4 fill-current" />
+            ) : (
+              <Play className="h-4 w-4 fill-current translate-x-[1px]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            aria-label="Piste suivante"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNext();
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          >
+            <SkipForward className="h-4 w-4 fill-current" />
+          </button>
+
+          <button
+            type="button"
+            aria-label="Répétition"
+            title={repeatTitle}
+            aria-pressed={isRepeat}
+            data-repeat-mode={repeatMode}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRepeat();
+            }}
+            className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer",
+              isRepeat
+                ? "bg-[#33F3FF]/15 text-[#33F3FF]"
+                : "text-white/65 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            {repeatMode === "One" ? (
+              <Repeat1 className="h-3.5 w-3.5" />
+            ) : (
+              <Repeat className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

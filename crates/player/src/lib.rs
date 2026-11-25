@@ -10,7 +10,7 @@
 //!    buffer se vide, sans redémarrer le flux WASAPI lorsque le format PCM est identique.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -20,8 +20,8 @@ use tidal_audio_wasapi::{
 };
 use tidal_auth::client::TidalClient;
 use tidal_core::{
-    AudioQuality, PcmFormat, PlaybackState, PlayerCommand, PlayerEvent, ReplayGainMode,
-    StreamFormatInfo,
+    AudioDeviceDescriptor, AudioQuality, PcmFormat, PlaybackState, PlayerCommand, PlayerEvent,
+    ReplayGainMode, StreamFormatInfo,
 };
 use tidal_decoder::{DecoderError, StreamDecoder};
 use tidal_stream::{DashTrackCache, ProgressiveBuffer, StreamDownloader, StreamError, StreamPlan};
@@ -170,6 +170,14 @@ impl PlayerHandle {
         self.send(PlayerCommand::LoadTrack { track_id, quality });
     }
 
+    pub fn load_track_at(&self, track_id: u64, quality: AudioQuality, start_position_ms: u64) {
+        self.send(PlayerCommand::LoadTrackAt {
+            track_id,
+            quality,
+            start_position_ms,
+        });
+    }
+
     pub fn prefetch_track(&self, track_id: u64, quality: AudioQuality) {
         self.send(PlayerCommand::PrefetchTrack { track_id, quality });
     }
@@ -295,15 +303,59 @@ struct ActiveTrackSession {
     /// pas enchaîner automatiquement tant que l'utilisateur n'a pas repris.
     paused: Arc<AtomicBool>,
     pending_seek_ms: Arc<AtomicI64>,
+    last_position_ms: Arc<AtomicU64>,
     buffer: CurrentBufferSlot,
     wasapi: WasapiActiveStream,
 }
 
 impl ActiveTrackSession {
+    fn current_position_ms(&self) -> u64 {
+        self.last_position_ms.load(Ordering::Acquire)
+    }
+
     fn stop(&mut self) {
         self.cancel_flag.store(true, Ordering::Release);
         self.buffer.cancel();
         self.wasapi.stop();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum DeviceChangeRecovery {
+    None,
+    ReopenWithConfig { fallback_to_default: bool },
+}
+
+fn evaluate_device_change_recovery(
+    configured_device_id: Option<&str>,
+    previous_default_id: Option<&str>,
+    new_devices: &[AudioDeviceDescriptor],
+) -> DeviceChangeRecovery {
+    let new_default_id = new_devices
+        .iter()
+        .find(|d| d.is_default)
+        .map(|d| d.id.as_str());
+
+    match configured_device_id.filter(|id| !id.is_empty()) {
+        None => {
+            if new_default_id.is_some() && new_default_id != previous_default_id {
+                DeviceChangeRecovery::ReopenWithConfig {
+                    fallback_to_default: false,
+                }
+            } else {
+                DeviceChangeRecovery::None
+            }
+        }
+        Some(pinned_id) => {
+            let still_present = new_devices.iter().any(|d| d.id == pinned_id);
+            if !still_present && !new_devices.is_empty() {
+                DeviceChangeRecovery::ReopenWithConfig {
+                    fallback_to_default: true,
+                }
+            } else {
+                DeviceChangeRecovery::None
+            }
+        }
     }
 }
 
@@ -346,15 +398,19 @@ pub fn spawn_player_actor(
     let replay_gain_mode = Arc::new(AtomicU8::new(REPLAY_GAIN_TRACK));
 
     tokio::spawn(async move {
+        let mut last_default_device_id: Option<String> = None;
         if let Ok(devs) = enumerate_output_devices() {
+            last_default_device_id = devs.iter().find(|d| d.is_default).map(|d| d.id.clone());
             let _ = evt_tx.send(PlayerEvent::DevicesEnumerated(devs));
         }
 
         // Hot-plug USB DAC / casque : le watcher vit aussi longtemps que la tâche
         // du lecteur et est joint proprement à sa sortie.
+        let (hotplug_tx, mut hotplug_rx) = mpsc::unbounded_channel::<Vec<AudioDeviceDescriptor>>();
         let hotplug_evt_tx = evt_tx.clone();
         let _device_watcher = AudioDeviceWatcher::start(DEVICE_WATCH_INTERVAL, move |devices| {
-            let _ = hotplug_evt_tx.send(PlayerEvent::DevicesEnumerated(devices));
+            let _ = hotplug_evt_tx.send(PlayerEvent::DevicesEnumerated(devices.clone()));
+            let _ = hotplug_tx.send(devices);
         });
 
         // Partage le même pool HTTP/2 + TLS keep-alive que TidalClient
@@ -366,10 +422,14 @@ pub fn spawn_player_actor(
         let mut wasapi_cfg = initial_config;
         let mut active: Option<ActiveTrackSession> = None;
         let mut load_gen: u64 = 0;
+        let mut consecutive_recoveries: u8 = 0;
         let mut pending_load: Option<tokio::task::JoinHandle<()>> = None;
         let mut pending_prefetch: Option<tokio::task::JoinHandle<()>> = None;
         let (loaded_tx, mut loaded_rx) =
             mpsc::unbounded_channel::<(u64, Result<ActiveTrackSession>)>();
+
+        let mut health_tick = tokio::time::interval(Duration::from_millis(350));
+        health_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         loop {
             tokio::select! {
@@ -386,6 +446,7 @@ pub fn spawn_player_actor(
                     pending_load = None;
                     match outcome {
                         Ok(session) => {
+                            consecutive_recoveries = 0;
                             // Le mode a pu changer pendant le chargement réseau :
                             // on applique le mode courant au moment où la piste
                             // devient réellement active.
@@ -401,13 +462,121 @@ pub fn spawn_player_actor(
                             info.is_bit_perfect =
                                 info.is_bit_perfect && (lock || q24 >= (1 << 24));
                             let _ = evt_tx.send(PlayerEvent::FormatNegotiated(info));
-                            let _ = evt_tx.send(PlayerEvent::StateChanged(PlaybackState::Playing));
+                            let next_state = if session.paused.load(Ordering::Acquire) {
+                                PlaybackState::Paused
+                            } else {
+                                PlaybackState::Playing
+                            };
+                            let _ = evt_tx.send(PlayerEvent::StateChanged(next_state));
                             active = Some(session);
                         }
                         Err(e) => {
                             let _ = evt_tx.send(PlayerEvent::StateChanged(
                                 PlaybackState::Error(e.to_string()),
                             ));
+                        }
+                    }
+                }
+
+                Some(devices) = hotplug_rx.recv() => {
+                    let recovery = evaluate_device_change_recovery(
+                        wasapi_cfg.device_id.as_deref(),
+                        last_default_device_id.as_deref(),
+                        &devices,
+                    );
+                    last_default_device_id =
+                        devices.iter().find(|d| d.is_default).map(|d| d.id.clone());
+
+                    if let DeviceChangeRecovery::ReopenWithConfig { fallback_to_default } = recovery {
+                        if let Some(mut prev) = active.take() {
+                            let current = prev.current.lock().ok().map(|guard| *guard);
+                            let resume_pos_ms = prev.current_position_ms();
+                            let was_paused = prev.paused.load(Ordering::Acquire);
+                            prev.stop();
+                            if fallback_to_default {
+                                wasapi_cfg.device_id = None;
+                            }
+                            if let Some(state) = current {
+                                load_gen = load_gen.wrapping_add(1);
+                                if let Some(h) = pending_load.take() {
+                                    h.abort();
+                                }
+                                let _ = evt_tx
+                                    .send(PlayerEvent::StateChanged(PlaybackState::Buffering));
+                                pending_load = Some(spawn_load_task(
+                                    load_gen,
+                                    Arc::clone(&client),
+                                    downloader.clone(),
+                                    plan_cache.clone(),
+                                    state.track_id,
+                                    state.quality,
+                                    wasapi_cfg.clone(),
+                                    Arc::clone(&gain_q24),
+                                    Arc::clone(&bit_perfect_lock),
+                                    Arc::clone(&replay_gain_mode),
+                                    Arc::clone(&gapless_enabled),
+                                    Arc::clone(&gapless_next),
+                                    (resume_pos_ms > 0).then_some(resume_pos_ms),
+                                    was_paused,
+                                    Some(Duration::from_millis(250)),
+                                    evt_tx.clone(),
+                                    loaded_tx.clone(),
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                _ = health_tick.tick() => {
+                    let invalidated = active
+                        .as_ref()
+                        .is_some_and(|sess| sess.wasapi.is_device_invalidated());
+                    if invalidated && consecutive_recoveries < 3 {
+                        consecutive_recoveries = consecutive_recoveries.saturating_add(1);
+                        if let Some(mut prev) = active.take() {
+                            let current = prev.current.lock().ok().map(|guard| *guard);
+                            let resume_pos_ms = prev.current_position_ms();
+                            let was_paused = prev.paused.load(Ordering::Acquire);
+                            prev.stop();
+
+                            if let Ok(devs) = enumerate_output_devices() {
+                                last_default_device_id =
+                                    devs.iter().find(|d| d.is_default).map(|d| d.id.clone());
+                                if let Some(pinned) = wasapi_cfg.device_id.as_deref() {
+                                    if !devs.iter().any(|d| d.id == pinned) {
+                                        wasapi_cfg.device_id = None;
+                                    }
+                                }
+                                let _ = evt_tx.send(PlayerEvent::DevicesEnumerated(devs));
+                            }
+
+                            if let Some(state) = current {
+                                load_gen = load_gen.wrapping_add(1);
+                                if let Some(h) = pending_load.take() {
+                                    h.abort();
+                                }
+                                let _ = evt_tx
+                                    .send(PlayerEvent::StateChanged(PlaybackState::Buffering));
+                                pending_load = Some(spawn_load_task(
+                                    load_gen,
+                                    Arc::clone(&client),
+                                    downloader.clone(),
+                                    plan_cache.clone(),
+                                    state.track_id,
+                                    state.quality,
+                                    wasapi_cfg.clone(),
+                                    Arc::clone(&gain_q24),
+                                    Arc::clone(&bit_perfect_lock),
+                                    Arc::clone(&replay_gain_mode),
+                                    Arc::clone(&gapless_enabled),
+                                    Arc::clone(&gapless_next),
+                                    (resume_pos_ms > 0).then_some(resume_pos_ms),
+                                    was_paused,
+                                    Some(Duration::from_millis(300)),
+                                    evt_tx.clone(),
+                                    loaded_tx.clone(),
+                                ));
+                            }
                         }
                     }
                 }
@@ -421,13 +590,18 @@ pub fn spawn_player_actor(
                             device_id,
                             exclusive,
                         } => {
+                            consecutive_recoveries = 0;
                             wasapi_cfg.device_id = device_id;
                             wasapi_cfg.exclusive = exclusive;
                             if let Ok(devs) = enumerate_output_devices() {
+                                last_default_device_id =
+                                    devs.iter().find(|d| d.is_default).map(|d| d.id.clone());
                                 let _ = evt_tx.send(PlayerEvent::DevicesEnumerated(devs));
                             }
                             if let Some(mut prev) = active.take() {
                                 let current = prev.current.lock().ok().map(|guard| *guard);
+                                let resume_pos_ms = prev.current_position_ms();
+                                let was_paused = prev.paused.load(Ordering::Acquire);
                                 prev.stop();
                                 load_gen = load_gen.wrapping_add(1);
                                 if let Some(h) = pending_load.take() {
@@ -449,6 +623,9 @@ pub fn spawn_player_actor(
                                         Arc::clone(&replay_gain_mode),
                                         Arc::clone(&gapless_enabled),
                                         Arc::clone(&gapless_next),
+                                        (resume_pos_ms > 0).then_some(resume_pos_ms),
+                                        was_paused,
+                                        None,
                                         evt_tx.clone(),
                                         loaded_tx.clone(),
                                     ));
@@ -579,7 +756,19 @@ pub fn spawn_player_actor(
                                 }
                             }
                         }
-                        PlayerCommand::LoadTrack { track_id, quality } => {
+                        PlayerCommand::LoadTrack { track_id, quality }
+                        | PlayerCommand::LoadTrackAt {
+                            track_id,
+                            quality,
+                            start_position_ms: _,
+                        } => {
+                            let initial_seek_ms = match cmd {
+                                PlayerCommand::LoadTrackAt {
+                                    start_position_ms, ..
+                                } if start_position_ms > 0 => Some(start_position_ms),
+                                _ => None,
+                            };
+                            consecutive_recoveries = 0;
                             load_gen = load_gen.wrapping_add(1);
                             if let Some(h) = pending_load.take() {
                                 h.abort();
@@ -607,6 +796,9 @@ pub fn spawn_player_actor(
                                 Arc::clone(&replay_gain_mode),
                                 Arc::clone(&gapless_enabled),
                                 Arc::clone(&gapless_next),
+                                initial_seek_ms,
+                                false,
+                                None,
                                 evt_tx.clone(),
                                 loaded_tx.clone(),
                             ));
@@ -641,11 +833,17 @@ fn spawn_load_task(
     replay_gain_mode: Arc<AtomicU8>,
     gapless_enabled: Arc<AtomicBool>,
     gapless_next: Arc<Mutex<Option<(u64, AudioQuality)>>>,
+    initial_seek_ms: Option<u64>,
+    start_paused: bool,
+    startup_delay: Option<Duration>,
     evt_tx: mpsc::UnboundedSender<PlayerEvent>,
     loaded_tx: mpsc::UnboundedSender<(u64, Result<ActiveTrackSession>)>,
 ) -> tokio::task::JoinHandle<()> {
     let worker_client = Arc::clone(&client);
     tokio::spawn(async move {
+        if let Some(delay) = startup_delay {
+            tokio::time::sleep(delay).await;
+        }
         let res = start_track_pipeline(
             &client,
             &downloader,
@@ -659,6 +857,8 @@ fn spawn_load_task(
             Some(worker_client),
             gapless_enabled,
             gapless_next,
+            initial_seek_ms,
+            start_paused,
             evt_tx,
         )
         .await;
@@ -704,6 +904,8 @@ async fn start_track_pipeline(
     worker_client: Option<Arc<TidalClient>>,
     gapless_enabled: Arc<AtomicBool>,
     gapless_next: Arc<Mutex<Option<(u64, AudioQuality)>>>,
+    initial_seek_ms: Option<u64>,
+    start_paused: bool,
     evt_tx: mpsc::UnboundedSender<PlayerEvent>,
 ) -> Result<ActiveTrackSession> {
     let cached = resolve_or_fetch_plan(client, plan_cache, track_id, quality).await?;
@@ -749,48 +951,61 @@ async fn start_track_pipeline(
     let ring_capacity_samples = producer.slots();
     let mut prng_state: u64 = 0x9E37_79B9_7F4A_7C15 ^ track_id;
 
-    // Pré-décodage d'amorçage ultra-rapide (80 ms) avant le démarrage de l'horloge WASAPI
+    let start_pos_ms = initial_seek_ms.unwrap_or(0);
+    // Pré-décodage d'amorçage ultra-rapide (80 ms) avant le démarrage de l'horloge WASAPI,
+    // sauf reprise à une position précise (évite d'entendre une bribe de 0:00).
     let prefill_samples =
         pcm_format.frames_for_duration(Duration::from_millis(PREFILL_DURATION_MS))
             * pcm_format.samples_per_frame();
     let mut decode_scratch = Vec::with_capacity(16_384);
 
-    while producer.slots() > 0 {
-        decode_scratch.clear();
-        match decoder.decode_next(&mut decode_scratch)? {
-            Some(_) => {
-                apply_optional_gain_tpdf(
-                    &mut decode_scratch,
-                    &gain_q24,
-                    &bit_perfect_lock,
-                    &mut prng_state,
-                );
-                push_samples_blocking(
-                    &mut producer,
-                    &decode_scratch,
-                    &AtomicBool::new(false),
-                    None,
-                );
-                let filled = ring_capacity_samples.saturating_sub(producer.slots());
-                if filled >= prefill_samples {
-                    break;
+    if start_pos_ms == 0 {
+        while producer.slots() > 0 {
+            decode_scratch.clear();
+            match decoder.decode_next(&mut decode_scratch)? {
+                Some(_) => {
+                    apply_optional_gain_tpdf(
+                        &mut decode_scratch,
+                        &gain_q24,
+                        &bit_perfect_lock,
+                        &mut prng_state,
+                    );
+                    push_samples_blocking(
+                        &mut producer,
+                        &decode_scratch,
+                        &AtomicBool::new(false),
+                        None,
+                    );
+                    let filled = ring_capacity_samples.saturating_sub(producer.slots());
+                    if filled >= prefill_samples {
+                        break;
+                    }
                 }
+                None => break,
             }
-            None => break,
         }
     }
 
     tidal_audio_wasapi::set_replay_gain(gain_db, peak_amplitude, replay_gain_enabled);
     let wasapi = WasapiActiveStream::start(wasapi_cfg, pcm_format, codec_label, consumer)?;
+    if start_paused {
+        wasapi.pause();
+    }
     let dac_clock = wasapi.clock();
     let flush_ring = wasapi.flush_ring_handle();
 
     let cancel_flag = Arc::new(AtomicBool::new(false));
     let cancel_worker = Arc::clone(&cancel_flag);
-    let paused_flag = Arc::new(AtomicBool::new(false));
+    let paused_flag = Arc::new(AtomicBool::new(start_paused));
     let thread_paused = Arc::clone(&paused_flag);
-    let pending_seek_ms = Arc::new(AtomicI64::new(-1));
+    let pending_seek_ms = Arc::new(AtomicI64::new(if start_pos_ms > 0 {
+        start_pos_ms as i64
+    } else {
+        -1
+    }));
     let seek_worker = Arc::clone(&pending_seek_ms);
+    let last_position_ms = Arc::new(AtomicU64::new(start_pos_ms));
+    let thread_last_pos = Arc::clone(&last_position_ms);
     let active_buffer = buffer.clone();
     let thread_buffer_slot = buffer_slot.clone();
     let worker_downloader = downloader.clone();
@@ -912,7 +1127,9 @@ async fn start_track_pipeline(
                         }
                         let rendered_ms = dac_clock.rendered_position_ms() as i64;
                         seek_offset_ms = (actual_ms as i64) - rendered_ms;
+                        thread_last_pos.store(actual_ms, Ordering::Release);
                         let _ = evt_tx.send(PlayerEvent::PositionUpdated {
+                            track_id,
                             position_ms: actual_ms,
                             duration_ms: total_duration_ms,
                         });
@@ -944,7 +1161,9 @@ async fn start_track_pipeline(
                                 seek_offset_ms,
                                 total_duration_ms,
                             );
+                            thread_last_pos.store(pos_ms, Ordering::Release);
                             let _ = evt_tx.send(PlayerEvent::PositionUpdated {
+                                track_id,
                                 position_ms: pos_ms,
                                 duration_ms: total_duration_ms,
                             });
@@ -1044,6 +1263,7 @@ async fn start_track_pipeline(
                                                     album_peak_amplitude: next_album_peak,
                                                 };
                                             }
+                                            thread_last_pos.store(0, Ordering::Release);
                                             let _ = evt_tx.send(
                                                 PlayerEvent::TrackTransitioned {
                                                     from_track_id,
@@ -1086,7 +1306,9 @@ async fn start_track_pipeline(
                                 seek_offset_ms,
                                 total_duration_ms,
                             );
+                            thread_last_pos.store(pos_ms, Ordering::Release);
                             let _ = evt_tx.send(PlayerEvent::PositionUpdated {
+                                track_id,
                                 position_ms: pos_ms,
                                 duration_ms: total_duration_ms,
                             });
@@ -1126,6 +1348,7 @@ async fn start_track_pipeline(
         cancel_flag,
         paused: paused_flag,
         pending_seek_ms,
+        last_position_ms,
         buffer: buffer_slot,
         wasapi,
     })
@@ -1255,6 +1478,8 @@ pub async fn play_track_blocking(
         None,
         Arc::new(AtomicBool::new(false)),
         Arc::new(Mutex::new(None)),
+        None,
+        false,
         evt_tx,
     )
     .await?;
@@ -1567,6 +1792,49 @@ mod tests {
         assert_eq!(
             normalization_toggle_mode(ReplayGainMode::Off, false),
             ReplayGainMode::Off
+        );
+    }
+
+    #[test]
+    fn device_change_recovery_reopens_on_default_switch_or_pinned_unplug() {
+        let dev_a = AudioDeviceDescriptor {
+            id: "dac-a".into(),
+            name: "USB DAC A".into(),
+            is_default: true,
+        };
+        let dev_b = AudioDeviceDescriptor {
+            id: "headphones-b".into(),
+            name: "Headphones B".into(),
+            is_default: false,
+        };
+        let dev_b_default = AudioDeviceDescriptor {
+            is_default: true,
+            ..dev_b.clone()
+        };
+
+        assert_eq!(
+            evaluate_device_change_recovery(None, Some("dac-a"), &[dev_a.clone(), dev_b.clone()]),
+            DeviceChangeRecovery::None
+        );
+        assert_eq!(
+            evaluate_device_change_recovery(None, Some("dac-a"), &[dev_b_default.clone()]),
+            DeviceChangeRecovery::ReopenWithConfig {
+                fallback_to_default: false
+            }
+        );
+        assert_eq!(
+            evaluate_device_change_recovery(
+                Some("dac-a"),
+                Some("dac-a"),
+                &[dev_a.clone(), dev_b_default.clone()]
+            ),
+            DeviceChangeRecovery::None
+        );
+        assert_eq!(
+            evaluate_device_change_recovery(Some("dac-a"), Some("dac-a"), &[dev_b_default]),
+            DeviceChangeRecovery::ReopenWithConfig {
+                fallback_to_default: true
+            }
         );
     }
 }

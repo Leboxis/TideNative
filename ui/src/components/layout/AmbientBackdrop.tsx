@@ -47,17 +47,17 @@ export function AmbientBackdrop({ palette: paletteProp, intensity = "subtle" }: 
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 overflow-hidden bg-[#040406]"
+      className="pointer-events-none fixed inset-0 overflow-hidden bg-[var(--color-canvas)]"
       style={{ contain: "strict" }}
     >
       <motion.div
-        className="absolute inset-0 will-change-[opacity]"
+        className="absolute inset-0"
         style={{ backgroundImage: state.layers[0] }}
         animate={{ opacity: state.activeSlot === 0 ? 1 : 0 }}
         transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
       />
       <motion.div
-        className="absolute inset-0 will-change-[opacity]"
+        className="absolute inset-0"
         style={{ backgroundImage: state.layers[1] }}
         animate={{ opacity: state.activeSlot === 1 ? 1 : 0 }}
         transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}

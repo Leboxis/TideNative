@@ -1,5 +1,5 @@
 import { Disc3 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type CoverSize, coverUrl } from "@/lib/covers";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,10 @@ export function CoverImage({
 }: CoverImageProps) {
   const [failed, setFailed] = useState(false);
   const src = coverUrl(coverId, size);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (

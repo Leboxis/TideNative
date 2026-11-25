@@ -71,6 +71,7 @@ impl CacheDb {
                 duration_secs INTEGER NOT NULL,
                 audio_quality TEXT,
                 explicit INTEGER NOT NULL DEFAULT 0,
+                dolby_audio INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT (unixepoch())
             ) STRICT;
 
@@ -148,6 +149,9 @@ impl CacheDb {
         let _ = self
             .conn
             .execute_batch("ALTER TABLE tracks ADD COLUMN artist_id INTEGER NOT NULL DEFAULT 0;");
+        let _ = self
+            .conn
+            .execute_batch("ALTER TABLE tracks ADD COLUMN dolby_audio INTEGER NOT NULL DEFAULT 0;");
         Ok(())
     }
 
@@ -199,7 +203,7 @@ impl CacheDb {
     pub fn load_favorites(&self) -> Result<Vec<TrackSummary>> {
         let mut stmt = self.conn.prepare(
             "SELECT t.id, t.title, t.artist_name, t.artist_id, t.album_id, t.album_title, t.cover_id,
-                    t.duration_secs, t.audio_quality, t.explicit
+                    t.duration_secs, t.audio_quality, t.explicit, t.dolby_audio
              FROM favorites f
              JOIN tracks t ON t.id = f.track_id
              ORDER BY f.position ASC;",
@@ -281,7 +285,7 @@ impl CacheDb {
     pub fn load_playlist_tracks(&self, playlist_uuid: &str) -> Result<Vec<TrackSummary>> {
         let mut stmt = self.conn.prepare(
             "SELECT t.id, t.title, t.artist_name, t.artist_id, t.album_id, t.album_title, t.cover_id,
-                    t.duration_secs, t.audio_quality, t.explicit
+                    t.duration_secs, t.audio_quality, t.explicit, t.dolby_audio
              FROM playlist_tracks pt
              JOIN tracks t ON t.id = pt.track_id
              WHERE pt.playlist_uuid = ?1
@@ -303,7 +307,7 @@ impl CacheDb {
         }
         let mut stmt = self.conn.prepare(
             "SELECT t.id, t.title, t.artist_name, t.artist_id, t.album_id, t.album_title, t.cover_id,
-                    t.duration_secs, t.audio_quality, t.explicit
+                    t.duration_secs, t.audio_quality, t.explicit, t.dolby_audio
              FROM tracks_fts
              JOIN tracks t ON t.id = tracks_fts.rowid
              WHERE tracks_fts MATCH ?1
@@ -322,7 +326,7 @@ impl CacheDb {
     /// Récupère une piste par identifiant.
     pub fn get_track(&self, track_id: u64) -> Result<Option<TrackSummary>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, title, artist_name, artist_id, album_id, album_title, cover_id, duration_secs, audio_quality, explicit
+            "SELECT id, title, artist_name, artist_id, album_id, album_title, cover_id, duration_secs, audio_quality, explicit, dolby_audio
              FROM tracks WHERE id = ?1;",
         )?;
         stmt.bind_i64(1, track_id as i64)?;
@@ -450,6 +454,7 @@ impl CacheDb {
                         duration_secs: stmt.col_i64(7).max(0) as u32,
                         audio_quality: None,
                         explicit: false,
+                        dolby_audio: false,
                     },
                     play_count: stmt.col_i64(8).max(0) as u32,
                     total_secs: stmt.col_i64(9).max(0) as u64,
@@ -510,6 +515,7 @@ impl CacheDb {
                     duration_secs: stmt.col_i64(7).max(0) as u32,
                     audio_quality: None,
                     explicit: false,
+                    dolby_audio: false,
                 });
             }
         }
@@ -579,8 +585,8 @@ fn unix_now() -> i64 {
 
 fn upsert_tracks_in_tx(conn: &Connection, tracks: &[TrackSummary]) -> Result<()> {
     let mut stmt = conn.prepare(
-        "INSERT INTO tracks (id, title, artist_name, artist_id, album_id, album_title, cover_id, duration_secs, audio_quality, explicit, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, unixepoch())
+        "INSERT INTO tracks (id, title, artist_name, artist_id, album_id, album_title, cover_id, duration_secs, audio_quality, explicit, dolby_audio, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, unixepoch())
          ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             artist_name = excluded.artist_name,
@@ -591,6 +597,7 @@ fn upsert_tracks_in_tx(conn: &Connection, tracks: &[TrackSummary]) -> Result<()>
             duration_secs = excluded.duration_secs,
             audio_quality = excluded.audio_quality,
             explicit = excluded.explicit,
+            dolby_audio = excluded.dolby_audio,
             updated_at = excluded.updated_at;",
     )?;
     for t in tracks {
@@ -604,6 +611,7 @@ fn upsert_tracks_in_tx(conn: &Connection, tracks: &[TrackSummary]) -> Result<()>
         stmt.bind_i64(8, i64::from(t.duration_secs))?;
         stmt.bind_opt_str(9, t.audio_quality.as_deref())?;
         stmt.bind_i64(10, i64::from(t.explicit))?;
+        stmt.bind_i64(11, i64::from(t.dolby_audio))?;
         stmt.execute_and_reset()?;
     }
     Ok(())
@@ -623,6 +631,7 @@ fn read_track_row(stmt: &Statement<'_>) -> TrackSummary {
         duration_secs: stmt.col_i64(7) as u32,
         audio_quality: stmt.col_opt_str(8),
         explicit: stmt.col_i64(9) != 0,
+        dolby_audio: stmt.col_i64(10) != 0,
     }
 }
 
@@ -660,6 +669,7 @@ mod tests {
             duration_secs: 240,
             audio_quality: Some("HI_RES_LOSSLESS".into()),
             explicit: false,
+            dolby_audio: false,
         }
     }
 
@@ -813,6 +823,7 @@ mod tests {
             duration_secs: 240,
             audio_quality: None,
             explicit: false,
+            dolby_audio: false,
         }
     }
 

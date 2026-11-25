@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { type TrackSummary, commands } from "@/bindings";
 import { CoverImage } from "@/components/media/CoverImage";
+import { DetailHeaderSurface } from "@/components/media/DetailHeaderSurface";
 import { VirtualTrackList } from "@/components/media/VirtualTrackList";
 import { Button } from "@/components/ui/button";
+import { TrackListSkeleton } from "@/components/ui/skeleton";
 import { useLibraryStore } from "@/stores/libraryStore";
 
 interface MixDetailViewProps {
@@ -39,7 +41,10 @@ export function MixDetailView({ mixId, title, subtitle }: MixDetailViewProps) {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col space-y-6 pb-4">
-      <div className="flex items-end gap-6">
+      <DetailHeaderSurface
+        coverId={existingMix?.image_id ?? tracks[0]?.cover_id}
+        className="flex flex-col gap-6 sm:flex-row sm:items-end"
+      >
         <CoverImage
           coverId={existingMix?.image_id ?? tracks[0]?.cover_id}
           alt={title}
@@ -71,12 +76,10 @@ export function MixDetailView({ mixId, title, subtitle }: MixDetailViewProps) {
             </Button>
           </div>
         </div>
-      </div>
+      </DetailHeaderSurface>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-white/45">
-          Chargement du mix…
-        </div>
+        <TrackListSkeleton rows={7} />
       ) : (
         <VirtualTrackList tracks={tracks} />
       )}

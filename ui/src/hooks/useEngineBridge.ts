@@ -17,6 +17,7 @@ export function useEngineBridge() {
 
   const hydrateLibrary = useLibraryStore((s) => s.hydrate);
   const applySync = useLibraryStore((s) => s.applySync);
+  const setInitialSyncPending = useLibraryStore((s) => s.setInitialSyncPending);
 
   // Reveal the frameless OLED window immediately after React's initial commit.
   // Never gate on requestAnimationFrame: WebView2 suspends rAF while HWND is hidden.
@@ -32,17 +33,6 @@ export function useEngineBridge() {
     let unlisten: (() => void) | null = null;
 
     async function boot() {
-      const bootRes = await commands.getBootstrapState();
-      if (!cancelled && bootRes.status === "ok") {
-        hydratePlayback(bootRes.data);
-        hydrateLibrary(bootRes.data);
-        if (bootRes.data.authenticated) {
-          void commands.refreshLibrary();
-        }
-      }
-
-      await telemetryRuntime.start();
-
       const stop = await events.engineEventNotice.listen((ev) => {
         const notice = ev.payload;
         switch (notice.type) {
@@ -92,9 +82,31 @@ export function useEngineBridge() {
 
       if (cancelled) {
         stop();
-      } else {
-        unlisten = stop;
+        return;
       }
+      unlisten = stop;
+
+      const bootRes = await commands.getBootstrapState();
+      if (!cancelled && bootRes.status === "ok") {
+        hydratePlayback(bootRes.data);
+        hydrateLibrary(bootRes.data);
+        if (bootRes.data.authenticated) {
+          void commands
+            .refreshLibrary()
+            .then((syncRes) => {
+              if (!cancelled && syncRes.status === "ok") {
+                applySync(syncRes.data);
+              }
+            })
+            .finally(() => {
+              if (!cancelled) {
+                setInitialSyncPending(false);
+              }
+            });
+        }
+      }
+
+      await telemetryRuntime.start();
     }
 
     void boot();
@@ -113,5 +125,6 @@ export function useEngineBridge() {
     setPreferences,
     setAuth,
     applySync,
+    setInitialSyncPending,
   ]);
 }

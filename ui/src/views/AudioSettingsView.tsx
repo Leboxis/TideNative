@@ -101,7 +101,7 @@ export function AudioSettingsView() {
     <div className="mx-auto w-full max-w-3xl space-y-6 pb-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-white">Paramètres Audio</h1>
-        <p className="text-xs text-white/45 mt-0.5">
+        <p className="text-xs text-white/60 mt-0.5">
           Pipeline WASAPI Windows Bit-Perfect, qualité Hi-Res et préférences bureau
         </p>
       </div>
@@ -396,7 +396,7 @@ function SettingRow({ title, description, checked, onCheckedChange }: SettingRow
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-0.5">
         <p className="text-sm font-medium text-white">{title}</p>
-        <p className="text-xs text-white/45">{description}</p>
+        <p className="text-xs text-white/60">{description}</p>
       </div>
       <Switch aria-label={title} checked={checked} onCheckedChange={onCheckedChange} />
     </div>

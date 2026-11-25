@@ -20,7 +20,7 @@ export function AppShell({ children, overlays }: AppShellProps) {
         className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-[#040406] text-[#f5f5f7]"
       >
         <AmbientBackdrop intensity="subtle" />
-        <div className="relative z-10">
+        <div className="relative z-10 h-full w-full">
           <CompactPlayer />
         </div>
       </div>

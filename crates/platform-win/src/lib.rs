@@ -8,7 +8,7 @@ pub mod smtc;
 pub mod tray;
 pub mod webview_login;
 
-pub use dwm::{DwmBackdropReport, apply_windows11_styling};
+pub use dwm::{DwmBackdropReport, apply_compact_dwm_styling, apply_windows11_styling};
 pub use shell::{
     open_folder_in_explorer, open_url_in_browser, read_clipboard_text, write_clipboard_text,
 };
@@ -43,5 +43,11 @@ mod tests {
     #[test]
     fn rejects_null_hwnd_cleanly() {
         assert!(apply_windows11_styling(0, true).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_null_hwnd_for_compact_dwm_styling() {
+        assert!(apply_compact_dwm_styling(0).is_err());
     }
 }

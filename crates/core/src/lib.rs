@@ -174,6 +174,8 @@ pub struct TrackSummary {
     pub duration_secs: u32,
     pub audio_quality: Option<String>,
     pub explicit: bool,
+    #[serde(default)]
+    pub dolby_audio: bool,
 }
 
 impl TrackSummary {
@@ -485,6 +487,17 @@ impl TrackSortOrder {
     }
 }
 
+/// Meilleur résultat mis en avant lors d'une recherche catalogue (`topHit` v1 / `topHits` OpenAPI v2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "kind", content = "value")]
+pub enum TopHit {
+    Track(TrackSummary),
+    Album(AlbumSummary),
+    Artist(ArtistSummary),
+    Playlist(PlaylistSummary),
+}
+
 /// Résultats consolidés d'une recherche catalogue TIDAL.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -493,6 +506,8 @@ pub struct SearchResults {
     pub albums: Vec<AlbumSummary>,
     pub playlists: Vec<PlaylistSummary>,
     pub artists: Vec<ArtistSummary>,
+    #[serde(default)]
+    pub top_hit: Option<TopHit>,
 }
 
 /// Données dynamiques de l'onglet **Explorer** chargées depuis les endpoints TIDAL officiels
@@ -729,6 +744,14 @@ pub struct UiSnapshot {
     #[serde(default)]
     pub recent_searches: Vec<String>,
     pub recent_tracks: Vec<TrackSummary>,
+    #[serde(default)]
+    pub user_mixes: Vec<MixSummary>,
+    #[serde(default)]
+    pub discover_tracks: Vec<TrackSummary>,
+    #[serde(default)]
+    pub discover_refreshed_at: Option<u64>,
+    #[serde(default)]
+    pub discover_rotation: u64,
     /// File d'attente et position restaurées à la reprise d'une session.
     #[serde(default)]
     pub playback_session: Option<SessionPlaybackState>,
@@ -752,6 +775,11 @@ pub enum PlayerCommand {
     LoadTrack {
         track_id: u64,
         quality: AudioQuality,
+    },
+    LoadTrackAt {
+        track_id: u64,
+        quality: AudioQuality,
+        start_position_ms: u64,
     },
     PrefetchTrack {
         track_id: u64,
@@ -797,6 +825,7 @@ pub enum PlayerEvent {
     StateChanged(PlaybackState),
     FormatNegotiated(StreamFormatInfo),
     PositionUpdated {
+        track_id: u64,
         position_ms: u64,
         duration_ms: u64,
     },
@@ -887,6 +916,7 @@ mod tests {
             duration_secs: 210,
             audio_quality: Some("HI_RES_LOSSLESS".into()),
             explicit: false,
+            dolby_audio: false,
         };
         assert_eq!(
             track.cover_url(640).as_deref(),

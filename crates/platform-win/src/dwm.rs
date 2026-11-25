@@ -103,3 +103,43 @@ pub fn apply_windows11_styling(hwnd_raw: isize, enable_mica: bool) -> Result<Dwm
 pub fn apply_windows11_styling(_hwnd_raw: isize, _enable_mica: bool) -> Result<DwmBackdropReport> {
     Ok(DwmBackdropReport::default())
 }
+
+/// En mode compact, conserve les coins arrondis natifs DWM Windows 11 et masque
+/// la bordure DWM (`DWMWA_COLOR_NONE = 0xFFFFFFFE`) pour éviter tout liseré ou
+/// bordure GDI parasite autour du mini-lecteur.
+#[cfg(windows)]
+pub fn apply_compact_dwm_styling(hwnd_raw: isize) -> Result<()> {
+    use std::ffi::c_void;
+    use std::mem::size_of;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{
+        DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
+    };
+
+    if hwnd_raw == 0 {
+        return Err(PlatformError::InvalidHandle);
+    }
+    let hwnd = HWND(hwnd_raw as *mut c_void);
+    let corner = DWMWCP_ROUND;
+    let border_none: u32 = 0xFFFF_FFFE;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &corner as *const _ as *const c_void,
+            size_of::<i32>() as u32,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &border_none as *const u32 as *const c_void,
+            size_of::<u32>() as u32,
+        );
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn apply_compact_dwm_styling(_hwnd_raw: isize) -> Result<()> {
+    Ok(())
+}

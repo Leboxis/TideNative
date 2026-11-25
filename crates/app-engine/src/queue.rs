@@ -103,6 +103,19 @@ impl QueueState {
         true
     }
 
+    pub fn apply_player_position_for_track(
+        &mut self,
+        track_id: u64,
+        pos_ms: u64,
+        dur_ms: u64,
+        now: Instant,
+    ) -> bool {
+        if self.current_track.as_ref().map(|t| t.id) != Some(track_id) {
+            return false;
+        }
+        self.apply_player_position(pos_ms, dur_ms, now)
+    }
+
     pub fn set_queue_and_select(
         &mut self,
         tracks: Vec<TrackSummary>,
@@ -332,6 +345,7 @@ pub fn next_track_step(queue_index: Option<usize>, queue_len: usize, repeat: Rep
     match queue_index {
         Some(idx) if idx + 1 < queue_len => TrackStep::Play(idx + 1),
         Some(_) if repeat == RepeatMode::All => TrackStep::Play(0),
+        Some(_) if repeat == RepeatMode::One => TrackStep::Restart,
         Some(_) => TrackStep::Stop,
         None => TrackStep::Play(0),
     }
@@ -583,6 +597,7 @@ mod tests {
             duration_secs: 180,
             audio_quality: Some("LOSSLESS".into()),
             explicit: false,
+            dolby_audio: false,
         }
     }
 
@@ -649,5 +664,50 @@ mod tests {
         assert_eq!(q.queue_index, Some(1));
         assert_eq!(q.position_ms, 180_000);
         assert_eq!(q.pending_resume_seek_ms, Some(180_000));
+    }
+
+    #[test]
+    fn stale_position_update_from_previous_track_is_ignored_after_album_switch() {
+        let mut q = QueueState::default();
+        q.set_queue_and_select(vec![dummy_track(10), dummy_track(11)], 0, false);
+        let now = Instant::now();
+        assert!(q.apply_player_position_for_track(10, 125_000, 180_000, now));
+        assert_eq!(q.position_ms, 125_000);
+
+        // User switches from Favorites/Playlist track 10 to artist album track 20.
+        q.set_queue_and_select(vec![dummy_track(20), dummy_track(21)], 0, false);
+        assert_eq!(q.position_ms, 0);
+
+        // Late PositionUpdated from track 10 must be discarded.
+        assert!(!q.apply_player_position_for_track(10, 126_000, 210_000, now));
+        assert_eq!(q.position_ms, 0);
+        assert_eq!(q.duration_ms, 180_000);
+
+        // PositionUpdated for the new album track 20 is applied normally.
+        assert!(q.apply_player_position_for_track(20, 1_500, 240_000, now));
+        assert_eq!(q.position_ms, 1_500);
+        assert_eq!(q.duration_ms, 240_000);
+    }
+
+    #[test]
+    fn repeat_modes_handle_track_end_next_step_and_gapless_targets() {
+        let queue = vec![dummy_track(1), dummy_track(2)];
+
+        assert_eq!(track_finished_step(Some(1), 2, RepeatMode::Off), TrackStep::Stop);
+        assert_eq!(track_finished_step(Some(1), 2, RepeatMode::All), TrackStep::Play(0));
+        assert_eq!(track_finished_step(Some(0), 2, RepeatMode::One), TrackStep::Restart);
+
+        assert_eq!(next_track_step(Some(1), 2, RepeatMode::Off), TrackStep::Stop);
+        assert_eq!(next_track_step(Some(1), 2, RepeatMode::All), TrackStep::Play(0));
+        assert_eq!(next_track_step(Some(1), 2, RepeatMode::One), TrackStep::Restart);
+        assert_eq!(next_track_step(Some(0), 2, RepeatMode::One), TrackStep::Play(1));
+
+        assert_eq!(gapless_next_track_id(&queue, Some(1), RepeatMode::Off), None);
+        assert_eq!(gapless_next_track_id(&queue, Some(1), RepeatMode::All), Some(1));
+        assert_eq!(gapless_next_track_id(&queue, Some(0), RepeatMode::One), Some(1));
+        assert_eq!(
+            next_track_index_for_transition(&queue, Some(0), RepeatMode::One, 1),
+            Some(0)
+        );
     }
 }

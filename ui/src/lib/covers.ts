@@ -359,6 +359,47 @@ export async function extractTrackRowColors(
   return task;
 }
 
+export interface HeaderTintPalette {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+
+const DEFAULT_HEADER_TINT: HeaderTintPalette = {
+  primary: "#1D2436",
+  secondary: "#121520",
+  accent: "#33F3FF",
+};
+
+function hexToRgbTuple(hex: string): [number, number, number] | null {
+  const cleaned = hex.replace("#", "").trim();
+  if (cleaned.length !== 6) return null;
+  const r = Number.parseInt(cleaned.slice(0, 2), 16);
+  const g = Number.parseInt(cleaned.slice(2, 4), 16);
+  const b = Number.parseInt(cleaned.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return [r, g, b];
+}
+
+function harmonizeHeaderColor(hex: string, targetL: number, maxSat: number): string {
+  const rgb = hexToRgbTuple(hex);
+  if (!rgb) return DEFAULT_HEADER_TINT.primary;
+  const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const tunedS = s < 0.08 ? s : Math.min(maxSat, Math.max(0.32, s * 0.85));
+  return toHex(hslToRgb(h, tunedS, targetL));
+}
+
+export function deriveHeaderTint(
+  palette: TrackRowColorPalette | null | undefined,
+): HeaderTintPalette {
+  if (!palette) return DEFAULT_HEADER_TINT;
+  return {
+    primary: harmonizeHeaderColor(palette.colors[0], 0.36, 0.72),
+    secondary: harmonizeHeaderColor(palette.colors[1] ?? palette.colors[0], 0.26, 0.62),
+    accent: palette.titleColor || DEFAULT_HEADER_TINT.accent,
+  };
+}
+
 export function getCachedCoverPalette(_coverId: string | null | undefined): CoverPalette | null {
   return null;
 }

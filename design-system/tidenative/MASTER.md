@@ -1,235 +1,85 @@
-# Design System Master File
+# TideNative — Design System Master File (OLED Spatial Immersion)
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
-
----
-
-**Project:** TideNative
-**Generated:** 2026-11-22 12:09:14
-**Category:** Music Streaming
-**Token files:** `tokens.json` (W3C Design Tokens Community Group JSON).
-Token files are master-level only; `--page` overrides do not emit tokens.
-**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 7/10 (Standard)
+> **Source de vérité design** pour l'application desktop **TideNative** (Tauri v2 + React 19 à 120 Hz + Cœur Rust WASAPI Exclusif Bit-Perfect).
+> Les variables CSS actives sont définies dans `ui/src/index.css` (`@theme`) et les tokens DTCG dans `design-system/tidenative/tokens.json`.
 
 ---
 
-## Global Rules
-
-### Color Palette
-
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#1E1B4B` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#4338CA` | `--color-secondary` |
-| On Secondary | `#FFFFFF` | `--color-on-secondary` |
-| Accent/CTA | `#22C55E` | `--color-accent` |
-| On Accent/CTA | `#0F172A` | `--color-on-accent` |
-| Background | `#0F0F23` | `--color-background` |
-| Foreground | `#F8FAFC` | `--color-foreground` |
-| Card | `#1B1B30` | `--color-card` |
-| Card Foreground | `#F8FAFC` | `--color-card-foreground` |
-| Muted | `#27273B` | `--color-muted` |
-| Muted Foreground | `#94A3B8` | `--color-muted-foreground` |
-| Border | `#312E81` | `--color-border` |
-| Destructive | `#EF4444` | `--color-destructive` |
-| On Destructive | `#000000` | `--color-on-destructive` |
-| Ring | `#FFFFFF` | `--color-ring` |
-
-**Color Notes:** Dark audio + play green
-
-### Typography
-
-- **Heading Font:** Righteous
-- **Body Font:** Poppins
-- **Mood:** music, entertainment, fun, energetic, bold, performance
-- **Google Fonts:** [Righteous + Poppins](https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Righteous&display=swap)
-
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Righteous&display=swap');
-```
-
-### Spacing Variables
-
-*Density: 7/10 — Standard*
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
-
-### Shadow Depths
-
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+**Project:** TideNative  
+**Direction artistique:** OLED Spatial Immersion (audiophile natif Windows, inspiré TIDAL / Roon / Apple Music)  
+**Stack UI:** React 19, TypeScript, Tailwind CSS v4, shadcn/ui (Radix UI), Motion (`motion/react`), TanStack Virtual, Lucide Icons  
+**Performance cible:** 120 Hz natif, zéro `setState` par frame, zéro flash blanc au démarrage (`#040406`)
 
 ---
 
-## Component Specs
+## 1. Palette OLED Spatial Immersion
 
-### Buttons
+### Surfaces & Bordures
 
-```css
-/* Primary Button */
-.btn-primary {
-  background: #22C55E;
-  color: #0F172A;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+| Rôle | Valeur | Variable CSS | Usage |
+|------|--------|--------------|-------|
+| Canvas OLED | `#040406` | `--color-canvas` | Fond fenêtre principal (zéro flash blanc au démarrage) |
+| Ambient Top | `#0A0B0F` | `--color-ambient-top` | Dégradé supérieur de l'arrière-plan ambiant |
+| Elevated Card | `#111116` | `--color-elevated` | Cartes (`.card-oled`), surfaces d'en-têtes détail, inputs |
+| Elevated Hover | `#17171F` | `--color-elevated-hover` | État survol sur cartes et contrôles de surface |
+| Surface Tint | `#0B0D14` | `--color-surface-tint` | Teinte neutre de repli pour `AmbientBackdrop` |
+| Glass Surface | `rgba(18, 18, 24, 0.84)` | `--color-glass-surface` | Barre de lecture, panneaux flottants, pilules d'action (`.glass-surface`) |
+| Glass Pill | `rgba(24, 24, 30, 0.88)` | `--color-glass-pill` | Navigation supérieure `TopNavPill` et tooltips |
+| Hairline Border | `rgba(255, 255, 255, 0.08)` | `--color-hairline` | Séparateurs 1 px haute précision |
+| Specular Border | `rgba(255, 255, 255, 0.13)` | `--color-specular` | Reflet spéculaire supérieur sur surfaces verre |
+| Strong Border | `rgba(255, 255, 255, 0.22)` | `--color-strong-border` | Survol de cartes et états actifs |
 
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+### Texte & Contraste (WCAG AA / AAA sur `#040406`)
 
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #F8FAFC;
-  border: 2px solid #1E1B4B;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
+| Rôle | Valeur | Variable CSS | Usage |
+|------|--------|--------------|-------|
+| Ink Primary | `#F5F5F7` | `--color-ink-primary` | Titres, noms de pistes, contrôles primaires |
+| Ink Secondary | `rgba(235, 235, 245, 0.70)` | `--color-ink-secondary` | Artistes, albums, métadonnées secondaires |
+| Ink Muted | `rgba(235, 235, 245, 0.58)` | `--color-ink-muted` | Numéros de piste, durées, légendes (contraste ≥ 4.5:1) |
 
-### Cards
+### Badges Qualité Officiels TIDAL & Signaux Audio
 
-```css
-.card {
-  background: #0F0F23;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
-
-### Inputs
-
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
-
-.input:focus {
-  border-color: #1E1B4B;
-  outline: none;
-  box-shadow: 0 0 0 3px #1E1B4B20;
-}
-```
-
-### Modals
-
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
+| Rôle | Valeur | Variable CSS | Usage |
+|------|--------|--------------|-------|
+| TIDAL MAX | `#FFD432` | `--color-tidal-max` | Hi-Res FLAC (24-bit / jusqu'à 192 kHz) |
+| TIDAL HIGH / Accent | `#33F3FF` | `--color-tidal-high` | Lossless CD 16-bit/44.1 kHz, piste active, anneau de focus |
+| TIDAL LOW | `#A8A8B3` | `--color-tidal-low` | AAC compressé |
+| Bit-Perfect | `#30D158` | `--color-bit-perfect` | WASAPI Exclusif Bit-Perfect verrouillé |
+| Favorite | `#FF2D55` | `--color-favorite` | Cœur favori actif (uniquement lorsqu'aimé) |
+| Signal Danger | `#FF453A` | `--color-signal-danger` | Erreurs réseau/DAC, actions destructives |
 
 ---
 
-## Style Guidelines
+## 2. Typographie
 
-**Style:** Dark Mode (OLED)
+Les polices sont **auto-hébergées localement** (`ui/public/fonts/*.woff2`, zéro dépendance réseau au rendu) et sélectionnables dans les Paramètres Audio via `html[data-ui-font]`:
 
-**Keywords:** Dark theme, low light, high contrast, deep black, midnight blue, eye-friendly, OLED, night mode, power efficient
-
-**Best For:** Night-mode apps, coding platforms, entertainment, eye-strain prevention, OLED devices, low-light
-
-**Key Effects:** Minimal glow (text-shadow: 0 0 10px), dark-to-light transitions, low white emission, high readability, visible focus
-
-### Page Pattern
-
-**Pattern Name:** Feature-Rich Showcase
-
-- **Conversion Strategy:** Clear feature hierarchy. One key message per card. Strong CTA repetition.
-- **CTA Placement:** Hero (sticky) + After features + Bottom
-- **Section Order:** Hero (value prop) > Feature grid/cards (4-6) > Use cases or benefits > Social proof or logos > CTA
+- **Default:** `Inter` (`--font-sans`)
+- **SeasonMix:** `Season Mix` (variable font locale)
+- **DmSans:** `DM Sans`
+- **PlusJakartaSans:** `Plus Jakarta Sans`
+- **Monospace technique:** `JetBrains Mono` / `Cascadia Code` (`--font-mono`) pour fréquences d'échantillonnage, bit-depth, temps (`tabular-nums`) et raccourcis clavier (`<kbd>`).
 
 ---
 
-## Motion
+## 3. Composants & Surfaces Signature
 
-**Scroll Reveal** (Subtle) — Trigger: scroll (viewport enter) | Duration: 300-400ms | Easing: `power1.out`
-
-```js
-gsap.from(el, { opacity: 0, y: 12, duration: 0.35, ease: 'power1.out', scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } });
-```
-
-**Framework notes:** Requires the ScrollTrigger plugin registered once via gsap.registerPlugin(ScrollTrigger); Use matchMedia('(prefers-reduced-motion: reduce)') to skip non-essential motion and render the final state immediately
-
-- ✅ Keep the y offset small (8-16px) so it reads as a fade, not a slide
-- ❌ Don't reveal below-the-fold content needed for SEO/crawlers as invisible-by-default without a no-JS fallback
-- ⚡ toggleActions 'play none none reverse' avoids re-triggering on every scroll direction change
+- **`AmbientBackdrop` (`ui/src/components/layout/AmbientBackdrop.tsx`) :** double calque GPU en crossfade `opacity` (650 ms, `cubic-bezier(0.22, 1, 0.36, 1)`) alimenté par `CoverPalette` extraite de la pochette en cours.
+- **`DetailHeaderSurface` (`ui/src/components/media/DetailHeaderSurface.tsx`) :** en-têtes d'albums, artistes, playlists et mix teintés par la pochette courante (`deriveHeaderTint` depuis `ui/src/lib/covers.ts`) avec halo radial double + filet spéculaire supérieur, tout en préservant le contraste du texte blanc.
+- **`MediaCard` (`ui/src/components/media/MediaCard.tsx`) :** carte OLED (`.card-oled`) avec miniature `tidal-cover://` et bouton Play rapide au survol / focus clavier (`quickPlayAlbum` / `quickPlayPlaylist`).
+- **`ActionTooltip` (`ui/src/components/ui/tooltip.tsx`) :** tooltips Radix homogènes avec badges de raccourcis clavier (`<kbd>`).
+- **`Skeleton` (`ui/src/components/ui/skeleton.tsx`) :** `DetailHeaderSkeleton`, `TrackListSkeleton`, `CardGridSkeleton` pour supprimer les états texte `"Chargement…"`.
+- **`NowPlayingView` (`ui/src/components/player/NowPlayingView.tsx`) :** visualiseur `MatrixOrbCanvas` (`Float32Array(5)` dans `requestAnimationFrame`), paroles synchronisées avec `.lyrics-fade-mask` (fondu haut/bas 12 %) et auto-scroll intelligent qui se met en pause lors du défilement manuel avec bouton « Revenir à la ligne en cours ».
 
 ---
 
-## Anti-Patterns (Do NOT Use)
+## 4. Règles 120 Hz, Motion & Accessibilité
 
-- ❌ Cluttered layout
-- ❌ Poor audio player UX
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+1. **Zéro `setState` par frame** : le `Scrubber` pilote un `MotionValue` (`scaleX`), `MatrixOrbCanvas` lit `telemetryRuntime` directement dans `requestAnimationFrame`.
+2. **Transitions GPU uniquement** : animer `opacity` et `transform`, éviter `transition-all` ou les changements de layout au survol.
+3. **`prefers-reduced-motion: reduce`** : supporté globalement dans `ui/src/index.css` et dans l'auto-scroll des paroles (`behavior: "auto"`).
+4. **Accessibilité clavier & souris** :
+   - Contour `:focus-visible` `2px solid var(--color-tidal-high)`.
+   - `cursor-pointer` sur tous les contrôles cliquables.
+   - Raccourcis globaux (`Space`, `←`/`→`, `↑`/`↓`, `Ctrl+K` / `/`, `M`, `Q`, `N`, `C`, `?`, `Alt+←`/`→`, boutons latéraux souris) documentés dans `ShortcutsDialog`.
+5. **Zéro emoji dans l'UI** : uniquement des icônes vectorielles `lucide-react`.

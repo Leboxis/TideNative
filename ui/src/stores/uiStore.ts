@@ -5,7 +5,7 @@ export type AppRoute =
   | { name: "discover" }
   | { name: "explore"; initialQuery?: string }
   | { name: "favorites" }
-  | { name: "collection"; initialTab?: "albums" | "artists" | "playlists" | "favorites" }
+  | { name: "collection"; initialTab?: "playlists" | "albums" | "artists" }
   | { name: "album"; albumId: number }
   | { name: "artist"; artistId: number }
   | { name: "playlist"; playlistUuid: string }
@@ -21,9 +21,13 @@ interface UiStore {
   queueOpen: boolean;
   commandOpen: boolean;
   compactMode: boolean;
+  compactAlwaysOnTop: boolean;
   creditsTrack: TrackSummary | null;
   addToPlaylistTrack: TrackSummary | null;
+  addToPlaylistTracks: TrackSummary[];
   createPlaylistOpen: boolean;
+  importPlaylistOpen: boolean;
+  shortcutsOpen: boolean;
   navigate: (route: AppRoute) => void;
   goBack: () => void;
   goForward: () => void;
@@ -33,10 +37,14 @@ interface UiStore {
   setQueueOpen: (open: boolean) => void;
   setCommandOpen: (open: boolean) => void;
   setCompactMode: (compact: boolean) => void;
+  setCompactAlwaysOnTop: (pinned: boolean) => void;
   toggleCompactMode: () => void;
   openCredits: (track: TrackSummary | null) => void;
   openAddToPlaylist: (track: TrackSummary | null) => void;
+  openAddToPlaylistMany: (tracks: TrackSummary[]) => void;
   setCreatePlaylistOpen: (open: boolean) => void;
+  setImportPlaylistOpen: (open: boolean) => void;
+  setShortcutsOpen: (open: boolean) => void;
 }
 
 const INITIAL_ROUTE: AppRoute = { name: "discover" };
@@ -49,9 +57,13 @@ export const useUiStore = create<UiStore>((set, get) => ({
   queueOpen: false,
   commandOpen: false,
   compactMode: false,
+  compactAlwaysOnTop: true,
   creditsTrack: null,
   addToPlaylistTrack: null,
+  addToPlaylistTracks: [],
   createPlaylistOpen: false,
+  importPlaylistOpen: false,
+  shortcutsOpen: false,
 
   navigate: (route) =>
     set((state) => {
@@ -93,6 +105,7 @@ export const useUiStore = create<UiStore>((set, get) => ({
   setQueueOpen: (queueOpen) => set({ queueOpen }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),
   setCompactMode: (compactMode) => {
+    const pinned = get().compactAlwaysOnTop;
     set(
       compactMode
         ? {
@@ -100,16 +113,40 @@ export const useUiStore = create<UiStore>((set, get) => ({
             nowPlayingOpen: false,
             queueOpen: false,
             commandOpen: false,
+            shortcutsOpen: false,
           }
         : { compactMode: false },
     );
-    void commands.setCompactMode(compactMode).catch(() => {});
+    void commands
+      .setCompactMode(compactMode)
+      .then(() => {
+        if (compactMode && !pinned) {
+          return commands.setAlwaysOnTop(false);
+        }
+        return undefined;
+      })
+      .catch(() => {});
+  },
+  setCompactAlwaysOnTop: (compactAlwaysOnTop) => {
+    set({ compactAlwaysOnTop });
+    void commands.setAlwaysOnTop(compactAlwaysOnTop).catch(() => {});
   },
   toggleCompactMode: () => {
     const next = !get().compactMode;
     get().setCompactMode(next);
   },
   openCredits: (creditsTrack) => set({ creditsTrack }),
-  openAddToPlaylist: (addToPlaylistTrack) => set({ addToPlaylistTrack }),
+  openAddToPlaylist: (addToPlaylistTrack) =>
+    set({
+      addToPlaylistTrack,
+      addToPlaylistTracks: addToPlaylistTrack ? [addToPlaylistTrack] : [],
+    }),
+  openAddToPlaylistMany: (tracks) =>
+    set({
+      addToPlaylistTrack: tracks[0] ?? null,
+      addToPlaylistTracks: tracks,
+    }),
   setCreatePlaylistOpen: (createPlaylistOpen) => set({ createPlaylistOpen }),
+  setImportPlaylistOpen: (importPlaylistOpen) => set({ importPlaylistOpen }),
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
 }));

@@ -24,27 +24,36 @@ async fn handle_player_event(engine: &Arc<AppEngine>, event: PlayerEvent) {
                     message: msg.clone(),
                 });
             }
+            let should_persist = matches!(state, PlaybackState::Paused);
             engine.apply_playback_state(state.clone());
             engine.emit(EngineEvent::PlaybackStateChanged { state });
+            if should_persist {
+                engine.schedule_persist_snapshot();
+            }
         }
         PlayerEvent::FormatNegotiated(format) => {
             engine.set_active_format(Some(format.clone()));
             engine.emit(EngineEvent::FormatNegotiated { format });
         }
         PlayerEvent::PositionUpdated {
+            track_id,
             position_ms,
             duration_ms,
         } => {
             let now = Instant::now();
             let (updated, current_track) = {
-                let mut pb = engine.playback.write().expect("playback lock poisoned");
-                let changed = pb.queue.apply_player_position(position_ms, duration_ms, now);
+                let mut pb = engine.playback.write();
+                let changed =
+                    pb.queue
+                        .apply_player_position_for_track(track_id, position_ms, duration_ms, now);
                 (changed, pb.queue.current_track.clone())
             };
             if updated {
                 engine.update_atomic_position(position_ms, duration_ms);
+                engine.maybe_persist_playback_position();
                 if let Some(track) = current_track {
-                    if let Ok(mut act) = engine.activity.lock() {
+                    {
+                        let mut act = engine.activity.lock();
                         act.record_position_tick(track.id, position_ms);
                     }
                     engine.flush_active_listening_progress(false);

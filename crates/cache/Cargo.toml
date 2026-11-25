@@ -5,15 +5,17 @@ edition = "2024"
 
 [dependencies]
 tidal-core = { path = "../core" }
+parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "http2"] }
-tokio = { version = "1", features = ["sync", "fs"] }
+tokio = { version = "1", features = ["sync", "fs", "rt", "time"] }
 thiserror = "2"
 zune-jpeg = "0.5"
 
 [dev-dependencies]
 jpeg-encoder = "0.6"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [

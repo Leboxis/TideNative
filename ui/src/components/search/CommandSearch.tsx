@@ -1,7 +1,7 @@
-import { Clock, Disc3, Music2, Search, User } from "lucide-react";
+import { Clock, Disc3, ListMusic, Music2, Search, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { type HybridSearchResults, type SearchSuggestions, commands } from "@/bindings";
+import { type HybridSearchResults, type SearchSuggestions, type TopHit, commands } from "@/bindings";
 import { CoverImage } from "@/components/media/CoverImage";
 import {
   Command,
@@ -102,6 +102,16 @@ export function CommandSearch() {
                   </span>
                 </CommandItem>
 
+                {results?.remote.top_hit && (
+                  <CommandGroup heading="Meilleur résultat">
+                    <TopHitCommandItem
+                      topHit={results.remote.top_hit}
+                      onSelect={(action) => closeAnd(action)}
+                      onNavigate={navigate}
+                    />
+                  </CommandGroup>
+                )}
+
                 {results && results.local_tracks.length > 0 && (
                   <CommandGroup heading="Votre bibliothèque (FTS5)">
                     {results.local_tracks.slice(0, 4).map((track, idx) => (
@@ -177,7 +187,7 @@ export function CommandSearch() {
                             closeAnd(() => navigate({ name: "artist", artistId: artist.id }))
                           }
                         >
-                          <CoverImage coverId={artist.picture_id} alt={artist.name} size={80} className="h-8 w-8" rounded="full" />
+                          <CoverImage coverId={artist.picture_id} alt={artist.name} size={160} className="h-8 w-8" rounded="full" />
                           <span className="truncate text-sm font-medium text-white">{artist.name}</span>
                           <User className="ml-auto h-3.5 w-3.5 text-white/30" />
                         </CommandItem>
@@ -193,5 +203,104 @@ export function CommandSearch() {
         </motion.div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TopHitCommandItem({
+  topHit,
+  onSelect,
+  onNavigate,
+}: {
+  topHit: TopHit;
+  onSelect: (fn: () => void) => void;
+  onNavigate: ReturnType<typeof useUiStore.getState>["navigate"];
+}) {
+  if (topHit.kind === "Artist") {
+    const artist = topHit.value;
+    return (
+      <CommandItem
+        key={`top-art-${artist.id}`}
+        onSelect={() => onSelect(() => onNavigate({ name: "artist", artistId: artist.id }))}
+      >
+        <CoverImage
+          coverId={artist.picture_id}
+          alt={artist.name}
+          size={160}
+          className="h-9 w-9"
+          rounded="full"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">{artist.name}</p>
+          <p className="truncate text-xs text-[#33F3FF]">Artiste</p>
+        </div>
+        <User className="h-3.5 w-3.5 text-white/30" />
+      </CommandItem>
+    );
+  }
+  if (topHit.kind === "Album") {
+    const album = topHit.value;
+    return (
+      <CommandItem
+        key={`top-alb-${album.id}`}
+        onSelect={() => onSelect(() => onNavigate({ name: "album", albumId: album.id }))}
+      >
+        <CoverImage
+          coverId={album.cover_id}
+          alt={album.title}
+          size={80}
+          className="h-9 w-9"
+          rounded="md"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">{album.title}</p>
+          <p className="truncate text-xs text-white/50">Album • {album.artist_name}</p>
+        </div>
+        <Disc3 className="h-3.5 w-3.5 text-[#33F3FF]/70" />
+      </CommandItem>
+    );
+  }
+  if (topHit.kind === "Playlist") {
+    const pl = topHit.value;
+    return (
+      <CommandItem
+        key={`top-pl-${pl.uuid}`}
+        onSelect={() => onSelect(() => onNavigate({ name: "playlist", playlistUuid: pl.uuid }))}
+      >
+        <CoverImage
+          coverId={pl.image_id}
+          alt={pl.title}
+          size={80}
+          className="h-9 w-9"
+          rounded="md"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">{pl.title}</p>
+          <p className="truncate text-xs text-white/50">Playlist • {pl.number_of_tracks} titres</p>
+        </div>
+        <ListMusic className="h-3.5 w-3.5 text-[#33F3FF]/70" />
+      </CommandItem>
+    );
+  }
+  const track = topHit.value;
+  return (
+    <CommandItem
+      key={`top-trk-${track.id}`}
+      onSelect={() => onSelect(() => void commands.playTracks([track], 0))}
+    >
+      <CoverImage
+        coverId={track.cover_id}
+        alt={track.title}
+        size={80}
+        className="h-9 w-9"
+        rounded="md"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-white">{track.title}</p>
+        <p className="truncate text-xs text-white/50">
+          Titre • {track.artist_name}
+        </p>
+      </div>
+      <Music2 className="h-3.5 w-3.5 text-[#33F3FF]/70" />
+    </CommandItem>
   );
 }

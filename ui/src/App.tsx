@@ -4,6 +4,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { AddToPlaylistDialog } from "@/components/modals/AddToPlaylistDialog";
 import { CreatePlaylistDialog } from "@/components/modals/CreatePlaylistDialog";
 import { CreditsDialog } from "@/components/modals/CreditsDialog";
+import { ImportPlaylistDialog } from "@/components/modals/ImportPlaylistDialog";
+import { ShortcutsDialog } from "@/components/modals/ShortcutsDialog";
 import { NowPlayingView } from "@/components/player/NowPlayingView";
 import { QueuePanel } from "@/components/player/QueuePanel";
 import { CommandSearch } from "@/components/search/CommandSearch";
@@ -64,8 +66,8 @@ function ActiveRouteView() {
       case "collection":
         return (
           <CollectionView
-            key={route.initialTab ?? "albums"}
-            initialTab={route.initialTab ?? "albums"}
+            key={route.initialTab ?? "playlists"}
+            initialTab={route.initialTab ?? "playlists"}
           />
         );
       case "album":
@@ -117,8 +119,10 @@ export default function App() {
           <QueuePanel />
           <CommandSearch />
           <CreatePlaylistDialog />
+          <ImportPlaylistDialog />
           <AddToPlaylistDialog />
           <CreditsDialog />
+          <ShortcutsDialog />
         </>
       }
     >

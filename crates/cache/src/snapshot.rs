@@ -62,6 +62,7 @@ mod tests {
             duration_secs: 180,
             audio_quality: Some("HI_RES_LOSSLESS".into()),
             explicit: false,
+            dolby_audio: false,
         }
     }
 

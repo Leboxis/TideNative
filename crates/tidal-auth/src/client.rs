@@ -3,12 +3,41 @@
 
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::credentials::ClientCredentials;
 use crate::error::{AuthError, Result};
 use crate::token::{self, TokenSet};
 use crate::{API_V1, CLIENT_VERSION, OPENAPI_V2, store};
+
+const MAX_RATE_LIMIT_RETRIES: usize = 3;
+const MIN_RETRY_AFTER_MS: u64 = 100;
+const MAX_RETRY_AFTER_MS: u64 = 15_000;
+
+/// Calcule le délai d'attente pour une réponse HTTP 429 à partir de `Retry-After`
+/// (secondes entières ou flottantes) avec repli exponentiel borné.
+pub(crate) fn compute_rate_limit_delay(retry_after_header: Option<&str>, attempt: usize) -> Duration {
+    if let Some(raw) = retry_after_header {
+        let trimmed = raw.trim();
+        if let Ok(secs) = trimmed.parse::<u64>() {
+            let ms = secs.saturating_mul(1000).clamp(MIN_RETRY_AFTER_MS, MAX_RETRY_AFTER_MS);
+            return Duration::from_millis(ms);
+        }
+        if let Ok(secs_f) = trimmed.parse::<f64>() {
+            if secs_f.is_finite() && secs_f >= 0.0 {
+                let ms = ((secs_f * 1000.0) as u64).clamp(MIN_RETRY_AFTER_MS, MAX_RETRY_AFTER_MS);
+                return Duration::from_millis(ms);
+            }
+        }
+    }
+    let backoff_ms = match attempt {
+        0 => 500,
+        1 => 1_500,
+        _ => 3_500,
+    };
+    Duration::from_millis(backoff_ms)
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,14 +125,37 @@ impl TidalClient {
         Ok(guard.authorization())
     }
 
+    async fn send_with_rate_limit<F>(&self, mut build: F) -> Result<reqwest::Response>
+    where
+        F: FnMut() -> reqwest::RequestBuilder,
+    {
+        for attempt in 0..=MAX_RATE_LIMIT_RETRIES {
+            let resp = build().send().await?;
+            if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+                && attempt < MAX_RATE_LIMIT_RETRIES
+            {
+                let retry_after = resp
+                    .headers()
+                    .get(reqwest::header::RETRY_AFTER)
+                    .and_then(|v| v.to_str().ok());
+                let delay = compute_rate_limit_delay(retry_after, attempt);
+                tokio::time::sleep(delay).await;
+                continue;
+            }
+            return Ok(resp);
+        }
+        unreachable!("loop always returns on final attempt")
+    }
+
     async fn send_get(&self, url: &str, query: &[(&str, &str)], auth: &str) -> Result<String> {
         let resp = self
-            .http
-            .get(url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("x-tidal-client-version", CLIENT_VERSION)
-            .send()
+            .send_with_rate_limit(|| {
+                self.http
+                    .get(url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("x-tidal-client-version", CLIENT_VERSION)
+            })
             .await?;
         let status = resp.status();
         let body = resp.text().await?;
@@ -117,12 +169,13 @@ impl TidalClient {
         auth: &str,
     ) -> Result<Option<String>> {
         let resp = self
-            .http
-            .get(url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("x-tidal-client-version", CLIENT_VERSION)
-            .send()
+            .send_with_rate_limit(|| {
+                self.http
+                    .get(url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("x-tidal-client-version", CLIENT_VERSION)
+            })
             .await?;
         let status = resp.status();
         let etag = resp
@@ -146,17 +199,21 @@ impl TidalClient {
         if_none_match: Option<&str>,
         auth: &str,
     ) -> Result<String> {
-        let mut req = self
-            .http
-            .post(url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("x-tidal-client-version", CLIENT_VERSION)
-            .form(form);
-        if let Some(etag) = if_none_match {
-            req = req.header("If-None-Match", etag);
-        }
-        let resp = req.send().await?;
+        let resp = self
+            .send_with_rate_limit(|| {
+                let mut req = self
+                    .http
+                    .post(url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("x-tidal-client-version", CLIENT_VERSION)
+                    .form(form);
+                if let Some(etag) = if_none_match {
+                    req = req.header("If-None-Match", etag);
+                }
+                req
+            })
+            .await?;
         let status = resp.status();
         let body = resp.text().await?;
         if status.is_success() { Ok(body) } else { Err(AuthError::Api { status: status.as_u16(), body }) }
@@ -169,16 +226,20 @@ impl TidalClient {
         if_none_match: Option<&str>,
         auth: &str,
     ) -> Result<String> {
-        let mut req = self
-            .http
-            .delete(url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("x-tidal-client-version", CLIENT_VERSION);
-        if let Some(etag) = if_none_match {
-            req = req.header("If-None-Match", etag);
-        }
-        let resp = req.send().await?;
+        let resp = self
+            .send_with_rate_limit(|| {
+                let mut req = self
+                    .http
+                    .delete(url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("x-tidal-client-version", CLIENT_VERSION);
+                if let Some(etag) = if_none_match {
+                    req = req.header("If-None-Match", etag);
+                }
+                req
+            })
+            .await?;
         let status = resp.status();
         let body = resp.text().await?;
         if status.is_success() { Ok(body) } else { Err(AuthError::Api { status: status.as_u16(), body }) }
@@ -192,18 +253,23 @@ impl TidalClient {
         payload: Option<&serde_json::Value>,
         auth: &str,
     ) -> Result<String> {
-        let mut req = self
-            .http
-            .request(method, url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("Accept", "application/vnd.api+json");
-        if let Some(json) = payload {
-            req = req
-                .header("Content-Type", "application/vnd.api+json")
-                .body(json.to_string());
-        }
-        let resp = req.send().await?;
+        let body_str = payload.map(|json| json.to_string());
+        let resp = self
+            .send_with_rate_limit(|| {
+                let mut req = self
+                    .http
+                    .request(method.clone(), url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("Accept", "application/vnd.api+json");
+                if let Some(ref raw) = body_str {
+                    req = req
+                        .header("Content-Type", "application/vnd.api+json")
+                        .body(raw.clone());
+                }
+                req
+            })
+            .await?;
         let status = resp.status();
         let body = resp.text().await?;
         if status.is_success() { Ok(body) } else { Err(AuthError::Api { status: status.as_u16(), body }) }
@@ -287,6 +353,28 @@ impl TidalClient {
         }
     }
 
+    /// PATCH JSON:API sur `https://openapi.tidal.com/v2/{path}` avec rejeu sur 401.
+    pub async fn patch_openapi_v2(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+        payload: &serde_json::Value,
+    ) -> Result<String> {
+        let url = format!("{OPENAPI_V2}/{}", path.trim_start_matches('/'));
+        let auth = self.authorization().await?;
+        match self
+            .send_jsonapi_write(reqwest::Method::PATCH, &url, query, Some(payload), &auth)
+            .await
+        {
+            Err(e) if e.is_unauthorized() => {
+                let auth = self.refresh_after_401(&auth).await?;
+                self.send_jsonapi_write(reqwest::Method::PATCH, &url, query, Some(payload), &auth)
+                    .await
+            }
+            other => other,
+        }
+    }
+
     /// DELETE JSON:API sur `https://openapi.tidal.com/v2/{path}` avec rejeu sur 401.
     pub async fn delete_openapi_v2(
         &self,
@@ -335,12 +423,13 @@ impl TidalClient {
 
     async fn send_get_jsonapi(&self, url: &str, query: &[(&str, &str)], auth: &str) -> Result<String> {
         let resp = self
-            .http
-            .get(url)
-            .query(query)
-            .header("Authorization", auth)
-            .header("Accept", "application/vnd.api+json")
-            .send()
+            .send_with_rate_limit(|| {
+                self.http
+                    .get(url)
+                    .query(query)
+                    .header("Authorization", auth)
+                    .header("Accept", "application/vnd.api+json")
+            })
             .await?;
         let status = resp.status();
         let body = resp.text().await?;
@@ -384,23 +473,7 @@ impl TidalClient {
 
     /// Repli officiel OpenAPI v2 JSON:API `GET https://openapi.tidal.com/v2/users/me`.
     async fn openapi_users_me(&self) -> Result<Session> {
-        let auth = self.authorization().await?;
-        let resp = self
-            .http
-            .get("https://openapi.tidal.com/v2/users/me")
-            .header("Authorization", &auth)
-            .header("Accept", "application/vnd.api+json")
-            .send()
-            .await?;
-        let status = resp.status();
-        let body = resp.text().await?;
-        if !status.is_success() {
-            return Err(AuthError::Api {
-                status: status.as_u16(),
-                body,
-            });
-        }
-        let v: serde_json::Value = serde_json::from_str(&body)?;
+        let v: serde_json::Value = self.get_openapi_v2("users/me", &[]).await?;
         let user_id = v
             .pointer("/data/id")
             .and_then(|x| x.as_str())
@@ -484,5 +557,19 @@ mod tests {
         assert_eq!(info.track_peak_amplitude, None);
         assert_eq!(info.album_replay_gain, None);
         assert_eq!(info.album_peak_amplitude, None);
+    }
+
+    #[test]
+    fn rate_limit_delay_parses_retry_after_and_caps_bounds() {
+        use super::compute_rate_limit_delay;
+        use std::time::Duration;
+
+        assert_eq!(compute_rate_limit_delay(Some("2"), 0), Duration::from_secs(2));
+        assert_eq!(compute_rate_limit_delay(Some("0"), 0), Duration::from_millis(100));
+        assert_eq!(compute_rate_limit_delay(Some("120"), 0), Duration::from_secs(15));
+        assert_eq!(compute_rate_limit_delay(Some("1.5"), 0), Duration::from_millis(1500));
+        assert_eq!(compute_rate_limit_delay(None, 0), Duration::from_millis(500));
+        assert_eq!(compute_rate_limit_delay(Some("invalid"), 1), Duration::from_millis(1500));
+        assert_eq!(compute_rate_limit_delay(None, 2), Duration::from_millis(3500));
     }
 }

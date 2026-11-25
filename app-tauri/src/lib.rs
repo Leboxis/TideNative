@@ -57,7 +57,9 @@ pub fn build_specta() -> SpectaBuilder<tauri::Wry> {
             commands::playback::queue_clear,
             commands::playback::play_track_radio,
             commands::playback::play_artist_radio,
+            commands::playback::play_album_radio,
             commands::library::refresh_library,
+            commands::library::refresh_discover,
             commands::library::toggle_favorite_track,
             commands::library::toggle_favorite_album,
             commands::library::toggle_favorite_artist,
@@ -66,6 +68,11 @@ pub fn build_specta() -> SpectaBuilder<tauri::Wry> {
             commands::library::delete_playlist,
             commands::library::add_track_to_playlist,
             commands::library::remove_track_from_playlist,
+            commands::library::update_playlist,
+            commands::library::move_playlist_track,
+            commands::library::duplicate_playlist,
+            commands::library::export_playlist,
+            commands::library::import_playlist,
             commands::catalog::search_hybrid,
             commands::catalog::search_suggestions,
             commands::catalog::get_explore_hub,
@@ -89,7 +96,9 @@ pub fn build_specta() -> SpectaBuilder<tauri::Wry> {
             commands::window::toggle_maximize_window,
             commands::window::close_main_window,
             commands::window::is_window_maximized,
+            commands::window::set_always_on_top,
             commands::window::set_compact_mode,
+            commands::window::quit_app,
         ])
         .events(collect_events![EngineEventNotice])
 }

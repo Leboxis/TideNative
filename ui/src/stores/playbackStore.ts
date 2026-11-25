@@ -160,7 +160,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   },
   setPlaybackState: (playbackState) => set({ playbackState }),
   setTrackChanged: (currentTrack, currentPalette, queueIndex, durationMs) => {
-    telemetryRuntime.seedPosition(0, durationMs);
+    const prevTrackId = get().currentTrack?.id ?? null;
+    const prevQueueIndex = get().queueIndex;
+    const nextTrackId = currentTrack?.id ?? null;
+    if (prevTrackId !== nextTrackId || prevQueueIndex !== queueIndex) {
+      telemetryRuntime.seedPosition(0, durationMs);
+    } else if (durationMs > 0 && telemetryRuntime.durationMs !== durationMs) {
+      telemetryRuntime.seedPosition(telemetryRuntime.positionMs, durationMs);
+    }
     const cachedPalette = getCachedCoverPalette(currentTrack?.cover_id);
     set({
       currentTrack,

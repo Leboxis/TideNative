@@ -1,4 +1,14 @@
-import { Heart, Play, RefreshCw, Search, Shuffle, X } from "lucide-react";
+import {
+  CheckSquare,
+  Heart,
+  ListMusic,
+  ListPlus,
+  Play,
+  RefreshCw,
+  Search,
+  Shuffle,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { commands } from "@/bindings";
@@ -13,11 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatSecs } from "@/lib/utils";
+import { type TidalQualityTier, formatSecs, qualityTierFromApi } from "@/lib/utils";
 import { useLibraryStore } from "@/stores/libraryStore";
 import { usePlaybackStore } from "@/stores/playbackStore";
+import { useUiStore } from "@/stores/uiStore";
 
 type TrackSortOrder = "Default" | "TitleAsc" | "ArtistAsc" | "AlbumAsc" | "DurationDesc";
+type QualityFilter = "ALL" | TidalQualityTier;
 
 const SORT_LABELS: Record<TrackSortOrder, string> = {
   Default: "Ordre d'ajout",
@@ -27,23 +39,62 @@ const SORT_LABELS: Record<TrackSortOrder, string> = {
   DurationDesc: "Durée",
 };
 
+const QUALITY_FILTER_STYLES: Record<QualityFilter, { active: string; idle: string }> = {
+  ALL: {
+    active: "bg-white text-[#050507] border-white font-semibold",
+    idle: "bg-white/[0.04] text-white/65 border-white/10 hover:text-white hover:border-white/20",
+  },
+  MAX: {
+    active: "bg-[#FFD432]/20 text-[#FFD432] border-[#FFD432]/45 font-semibold",
+    idle: "bg-white/[0.04] text-[#FFD432]/70 border-white/10 hover:border-[#FFD432]/30 hover:text-[#FFD432]",
+  },
+  HIGH: {
+    active: "bg-[#33F3FF]/18 text-[#33F3FF] border-[#33F3FF]/45 font-semibold",
+    idle: "bg-white/[0.04] text-[#33F3FF]/70 border-white/10 hover:border-[#33F3FF]/30 hover:text-[#33F3FF]",
+  },
+  LOW: {
+    active: "bg-white/15 text-[#A8A8B3] border-white/30 font-semibold",
+    idle: "bg-white/[0.04] text-[#A8A8B3]/70 border-white/10 hover:border-white/25 hover:text-[#A8A8B3]",
+  },
+};
+
 export function FavoritesView() {
   const authenticated = usePlaybackStore((s) => s.authenticated);
   const favorites = useLibraryStore((s) => s.favorites);
+  const openAddToPlaylistMany = useUiStore((s) => s.openAddToPlaylistMany);
   const [filter, setFilter] = useState("");
+  const [qualityFilter, setQualityFilter] = useState<QualityFilter>("ALL");
   const [sort, setSort] = useState<TrackSortOrder>("Default");
   const [syncing, setSyncing] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+
+  const qualityCounts = useMemo(() => {
+    const counts: Record<QualityFilter, number> = {
+      ALL: favorites.length,
+      MAX: 0,
+      HIGH: 0,
+      LOW: 0,
+    };
+    for (const track of favorites) {
+      counts[qualityTierFromApi(track.audio_quality)] += 1;
+    }
+    return counts;
+  }, [favorites]);
 
   const displayedFavorites = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    const list = q
-      ? favorites.filter(
-          (t) =>
-            t.title.toLowerCase().includes(q) ||
-            t.artist_name.toLowerCase().includes(q) ||
-            t.album_title.toLowerCase().includes(q),
-        )
-      : [...favorites];
+    const list = favorites.filter((t) => {
+      if (qualityFilter !== "ALL" && qualityTierFromApi(t.audio_quality) !== qualityFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.artist_name.toLowerCase().includes(q) ||
+        t.album_title.toLowerCase().includes(q)
+      );
+    });
 
     switch (sort) {
       case "TitleAsc":
@@ -62,7 +113,12 @@ export function FavoritesView() {
         break;
     }
     return list;
-  }, [favorites, filter, sort]);
+  }, [favorites, filter, qualityFilter, sort]);
+
+  const selectedTracks = useMemo(
+    () => displayedFavorites.filter((t) => selectedIds.has(t.id)),
+    [displayedFavorites, selectedIds],
+  );
 
   const totalSecs = useMemo(
     () => displayedFavorites.reduce((acc, t) => acc + t.duration_secs, 0),
@@ -96,8 +152,56 @@ export function FavoritesView() {
     }
   };
 
+  const toggleSelectTrack = (trackId: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(trackId)) next.delete(trackId);
+      else next.add(trackId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllDisplayed = () => {
+    const allDisplayedSelected =
+      displayedFavorites.length > 0 && displayedFavorites.every((t) => selectedIds.has(t.id));
+    if (allDisplayedSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(displayedFavorites.map((t) => t.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handlePlaySelection = () => {
+    if (selectedTracks.length === 0) return;
+    void commands.playTracks(selectedTracks, 0);
+    toast.success(`Lecture de ${selectedTracks.length} titre${selectedTracks.length > 1 ? "s" : ""}`);
+  };
+
+  const handleQueueSelection = async () => {
+    if (selectedTracks.length === 0) return;
+    let queued = 0;
+    for (const track of selectedTracks) {
+      const res = await commands.queueAdd(track);
+      if (res.status === "ok") queued += 1;
+    }
+    if (queued > 0) {
+      toast.success(`${queued} titre${queued > 1 ? "s" : ""} ajouté${queued > 1 ? "s" : ""} à la file`);
+      exitSelectionMode();
+    }
+  };
+
+  const handleAddSelectionToPlaylist = () => {
+    if (selectedTracks.length === 0) return;
+    openAddToPlaylistMany(selectedTracks);
+  };
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col space-y-5 pb-4">
+    <div className="flex flex-1 min-h-0 flex-col space-y-4 pb-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#FF2D55]/30 bg-[#FF2D55]/15 text-[#FF2D55]">
@@ -149,6 +253,14 @@ export function FavoritesView() {
 
           {displayedFavorites.length > 0 && (
             <>
+              <Button
+                variant={selectionMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                {selectionMode ? "Terminer" : "Sélectionner"}
+              </Button>
               <Button size="sm" onClick={handlePlayAll}>
                 <Play className="h-3.5 w-3.5 fill-current" />
                 Tout lire
@@ -172,12 +284,93 @@ export function FavoritesView() {
         </div>
       </div>
 
+      {/* Quick quality filters & multi-select bulk action bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Filtrer par qualité audio"
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          {(["ALL", "MAX", "HIGH", "LOW"] as QualityFilter[]).map((tier) => {
+            const count = qualityCounts[tier];
+            if (tier !== "ALL" && count === 0) return null;
+            const active = qualityFilter === tier;
+            const styles = QUALITY_FILTER_STYLES[tier];
+            return (
+              <button
+                key={tier}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setQualityFilter(tier)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] transition-colors cursor-pointer tabular-nums ${
+                  active ? styles.active : styles.idle
+                }`}
+              >
+                <span>{tier === "ALL" ? "Toutes qualités" : tier}</span>
+                <span className="opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {selectionMode && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#33F3FF]/25 bg-[#33F3FF]/[0.07] px-3 py-1.5">
+            <span className="text-xs font-medium text-white tabular-nums">
+              {selectedTracks.length} sélectionné{selectedTracks.length > 1 ? "s" : ""}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={toggleSelectAllDisplayed}
+            >
+              {selectedTracks.length === displayedFavorites.length && displayedFavorites.length > 0
+                ? "Tout désélectionner"
+                : "Tout sélectionner"}
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              disabled={selectedTracks.length === 0}
+              onClick={handlePlaySelection}
+            >
+              <Play className="h-3 w-3 fill-current" />
+              Lire
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              disabled={selectedTracks.length === 0}
+              onClick={() => void handleQueueSelection()}
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              À la file
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              disabled={selectedTracks.length === 0}
+              onClick={handleAddSelectionToPlaylist}
+            >
+              <ListMusic className="h-3.5 w-3.5" />
+              Playlist
+            </Button>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-1 min-h-0 flex-col">
         <VirtualTrackList
           tracks={displayedFavorites}
+          selectable={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelectTrack}
+          onToggleSelectAll={toggleSelectAllDisplayed}
           emptyLabel={
-            filter.trim()
-              ? "Aucun titre aimé ne correspond à votre filtre."
+            filter.trim() || qualityFilter !== "ALL"
+              ? "Aucun titre aimé ne correspond à vos filtres."
               : "Aucun titre aimé dans votre bibliothèque TIDAL."
           }
         />

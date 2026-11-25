@@ -200,3 +200,13 @@ pub async fn play_artist_radio(artist_id: u64, state: State<'_, AppState>) -> Re
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn play_album_radio(album_id: u64, state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .engine
+        .play_album_radio(album_id)
+        .await
+        .map_err(|e| e.to_string())
+}

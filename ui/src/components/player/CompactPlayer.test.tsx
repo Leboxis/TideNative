@@ -53,7 +53,8 @@ describe("CompactPlayer / AudioPlayer", () => {
 
     render(<CompactPlayer />);
 
-    expect(screen.getByText("NEFFEX — TOKYO MACHINE")).toBeInTheDocument();
+    expect(screen.getByText("TOKYO MACHINE")).toBeInTheDocument();
+    expect(screen.getByText("NEFFEX")).toBeInTheDocument();
     expect(screen.getByText("0:26")).toBeInTheDocument();
     expect(screen.getByText("3:55")).toBeInTheDocument();
 
@@ -82,5 +83,50 @@ describe("CompactPlayer / AudioPlayer", () => {
   it("returns null in standalone src mode when src is empty", () => {
     const { container } = render(<AudioPlayer src="" />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("quits the app from the discreet close button and exits compact mode from the expand button", () => {
+    useUiStore.setState({ compactMode: true });
+    const quitSpy = vi
+      .spyOn(commands, "quitApp")
+      .mockResolvedValue({ status: "ok", data: null });
+    const compactSpy = vi
+      .spyOn(commands, "setCompactMode")
+      .mockResolvedValue({ status: "ok", data: true });
+
+    render(<CompactPlayer />);
+
+    fireEvent.click(screen.getByLabelText("Fermer l'application"));
+    expect(quitSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText("Quitter le mode compact"));
+    expect(compactSpy).toHaveBeenCalledWith(false);
+    expect(useUiStore.getState().compactMode).toBe(false);
+
+    quitSpy.mockRestore();
+    compactSpy.mockRestore();
+  });
+
+  it("toggles Always on Top pin state via setAlwaysOnTop command", () => {
+    useUiStore.setState({ compactMode: true, compactAlwaysOnTop: true });
+    const pinSpy = vi
+      .spyOn(commands, "setAlwaysOnTop")
+      .mockResolvedValue({ status: "ok", data: false });
+
+    render(<CompactPlayer />);
+
+    const unpinBtn = screen.getByRole("button", { name: "Détacher du premier plan" });
+    expect(unpinBtn).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(unpinBtn);
+    expect(pinSpy).toHaveBeenCalledWith(false);
+    expect(useUiStore.getState().compactAlwaysOnTop).toBe(false);
+
+    const pinBtn = screen.getByRole("button", { name: "Épingler au premier plan" });
+    fireEvent.click(pinBtn);
+    expect(pinSpy).toHaveBeenLastCalledWith(true);
+    expect(useUiStore.getState().compactAlwaysOnTop).toBe(true);
+
+    pinSpy.mockRestore();
   });
 });

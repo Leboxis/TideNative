@@ -162,6 +162,7 @@ pub struct WasapiActiveStream {
     paused: Arc<AtomicBool>,
     stop_flag: Arc<AtomicBool>,
     flush_ring: Arc<AtomicBool>,
+    device_invalidated: Arc<AtomicBool>,
     frames_rendered: Arc<AtomicU64>,
     underruns: Arc<AtomicU64>,
     worker: Option<JoinHandle<()>>,
@@ -198,6 +199,12 @@ impl WasapiActiveStream {
 
     pub fn is_paused(&self) -> bool {
         self.paused.load(Ordering::Acquire)
+    }
+
+    /// Indique que le flux WASAPI a été invalidé par Windows (débranchement casque/DAC,
+    /// changement de périphérique ou sortie de veille) et doit être réouvert.
+    pub fn is_device_invalidated(&self) -> bool {
+        self.device_invalidated.load(Ordering::Acquire)
     }
 
     /// Nombre total de trames PCM effectivement envoyées au DAC depuis l'ouverture du flux.
@@ -318,12 +325,14 @@ mod win_engine {
         let paused = Arc::new(AtomicBool::new(false));
         let stop_flag = Arc::new(AtomicBool::new(false));
         let flush_ring = Arc::new(AtomicBool::new(false));
+        let device_invalidated = Arc::new(AtomicBool::new(false));
         let frames_rendered = Arc::new(AtomicU64::new(0));
         let underruns = Arc::new(AtomicU64::new(0));
 
         let paused_cl = Arc::clone(&paused);
         let stop_cl = Arc::clone(&stop_flag);
         let flush_cl = Arc::clone(&flush_ring);
+        let invalidated_cl = Arc::clone(&device_invalidated);
         let frames_cl = Arc::clone(&frames_rendered);
         let underruns_cl = Arc::clone(&underruns);
 
@@ -355,6 +364,7 @@ mod win_engine {
                     &paused_cl,
                     &stop_cl,
                     &flush_cl,
+                    &invalidated_cl,
                     &frames_cl,
                     &underruns_cl,
                 );
@@ -368,6 +378,7 @@ mod win_engine {
                 paused,
                 stop_flag,
                 flush_ring,
+                device_invalidated,
                 frames_rendered,
                 underruns,
                 worker: Some(worker),
@@ -687,9 +698,11 @@ mod win_engine {
         paused: &AtomicBool,
         stop_flag: &AtomicBool,
         flush_ring: &AtomicBool,
+        device_invalidated: &AtomicBool,
         frames_rendered: &AtomicU64,
         underruns: &AtomicU64,
     ) {
+        const STALL_TIMEOUT_LIMIT: u32 = 160;
         let channels = usize::from(negotiated.channels.max(1));
         let max_frames = negotiated.buffer_frames as usize;
         // Tampon de travail pré-alloué une seule fois hors de la boucle temps réel
@@ -697,6 +710,7 @@ mod win_engine {
         let mut current_gain_q24 = effective_target_gain_q24();
         let mut prng_state: u64 = 0x9E37_79B9_7F4A_7C15;
         let mut meter_lp = [0.0f32; 4];
+        let mut consecutive_timeouts: u32 = 0;
 
         // Pré-amorçage initial du tampon DMA avant `Start()` pour éviter tout clic à l'allumage
         fill_hardware_buffer(
@@ -714,6 +728,7 @@ mod win_engine {
         );
 
         if unsafe { audio_client.Start() }.is_err() {
+            device_invalidated.store(true, Ordering::Release);
             clear_live_audio_levels();
             let _ = unsafe { CloseHandle(event_handle) };
             return;
@@ -734,14 +749,30 @@ mod win_engine {
                 }
             }
             if wait_res != WAIT_OBJECT_0 {
+                if !paused.load(Ordering::Acquire) {
+                    consecutive_timeouts = consecutive_timeouts.saturating_add(1);
+                    if consecutive_timeouts >= STALL_TIMEOUT_LIMIT {
+                        device_invalidated.store(true, Ordering::Release);
+                        break;
+                    }
+                } else {
+                    consecutive_timeouts = 0;
+                }
                 continue;
             }
+            consecutive_timeouts = 0;
 
             let frames_to_write = if negotiated.is_exclusive {
                 negotiated.buffer_frames
             } else {
-                let padding = unsafe { audio_client.GetCurrentPadding() }.unwrap_or(0);
-                negotiated.buffer_frames.saturating_sub(padding)
+                match unsafe { audio_client.GetCurrentPadding() } {
+                    Ok(padding) => negotiated.buffer_frames.saturating_sub(padding),
+                    Err(e) if e.code() == AUDCLNT_E_DEVICE_INVALIDATED => {
+                        device_invalidated.store(true, Ordering::Release);
+                        break;
+                    }
+                    Err(_) => continue,
+                }
             };
 
             if frames_to_write == 0 {
@@ -761,6 +792,7 @@ mod win_engine {
                 &mut prng_state,
                 &mut meter_lp,
             ) {
+                device_invalidated.store(true, Ordering::Release);
                 break;
             }
         }

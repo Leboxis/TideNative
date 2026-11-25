@@ -3,7 +3,7 @@
 
 use serde::Deserialize;
 use serde_json::Value;
-use tidal_core::{AlbumSummary, ArtistSummary, PlaylistSummary, SearchResults, TrackSummary};
+use tidal_core::{AlbumSummary, ArtistSummary, PlaylistSummary, SearchResults, TopHit, TrackSummary};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,11 +37,19 @@ pub struct RawAlbum {
     #[serde(default)]
     pub title: String,
     #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
     pub cover: Option<String>,
     #[serde(default)]
     pub release_date: Option<String>,
     #[serde(default)]
     pub audio_quality: Option<String>,
+    #[serde(default)]
+    pub audio_modes: Vec<String>,
+    #[serde(default)]
+    pub media_metadata: Option<RawMediaMetadata>,
+    #[serde(default)]
+    pub explicit: bool,
     #[serde(default)]
     pub number_of_tracks: u32,
     #[serde(default)]
@@ -73,6 +81,8 @@ pub struct RawTrack {
     #[serde(default)]
     pub audio_quality: Option<String>,
     #[serde(default)]
+    pub audio_modes: Vec<String>,
+    #[serde(default)]
     pub media_metadata: Option<RawMediaMetadata>,
     #[serde(default)]
     pub artist: Option<RawArtist>,
@@ -85,6 +95,8 @@ pub struct RawTrack {
 /// Wrapper utilisé par `/favorites/tracks`, `/playlists/{uuid}/items` et `/albums/{id}/items`.
 #[derive(Debug, Deserialize)]
 pub struct TrackItemWrapper {
+    #[serde(rename = "type", default)]
+    pub item_type: Option<String>,
     pub item: Option<RawTrack>,
     #[serde(flatten)]
     pub direct: Option<RawTrack>,
@@ -133,6 +145,8 @@ pub struct RawSearchResponse {
     pub playlists: Option<PagedResponse<RawPlaylist>>,
     #[serde(default)]
     pub artists: Option<PagedResponse<RawArtist>>,
+    #[serde(default, rename = "topHit")]
+    pub top_hit: Option<Value>,
 }
 
 impl RawTrack {
@@ -177,6 +191,18 @@ impl RawTrack {
                 .iter()
                 .any(|t| t.eq_ignore_ascii_case("HIRES_LOSSLESS") || t.eq_ignore_ascii_case("HI_RES_LOSSLESS"))
         });
+        let dolby_audio = self.audio_modes.iter().any(|m| {
+            let u = m.to_ascii_uppercase();
+            u.contains("DOLBY") || u.contains("ATMOS")
+        }) || self.media_metadata.as_ref().is_some_and(|m| {
+            m.tags.iter().any(|t| {
+                let u = t.to_ascii_uppercase();
+                u.contains("DOLBY") || u.contains("ATMOS")
+            })
+        }) || self.audio_quality.as_deref().is_some_and(|q| {
+            let u = q.to_ascii_uppercase();
+            u.contains("DOLBY") || u.contains("ATMOS")
+        });
         let audio_quality = if is_hires_tag {
             Some("HI_RES_LOSSLESS".into())
         } else {
@@ -194,12 +220,18 @@ impl RawTrack {
             duration_secs: self.duration,
             audio_quality,
             explicit: self.explicit,
+            dolby_audio,
         })
     }
 }
 
 impl TrackItemWrapper {
     pub fn into_track(self) -> Option<TrackSummary> {
+        if let Some(kind) = self.item_type.as_deref() {
+            if !kind.eq_ignore_ascii_case("track") {
+                return None;
+            }
+        }
         self.item
             .and_then(RawTrack::into_summary)
             .or_else(|| self.direct.and_then(RawTrack::into_summary))
@@ -235,11 +267,81 @@ impl PlaylistItemWrapper {
     }
 }
 
+fn is_technical_edition_tag(tag: &str) -> bool {
+    let lower = tag.trim().to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "dolby atmos"
+            | "atmos"
+            | "360 reality audio"
+            | "sony 360 reality audio"
+            | "360"
+            | "mqa"
+            | "master"
+            | "hi-res"
+            | "hires"
+            | "clean"
+            | "clean version"
+            | "explicit"
+            | "explicit version"
+            | "edited"
+            | "edited version"
+            | "stereo"
+    )
+}
+
 impl RawAlbum {
+    pub fn is_immersive_only(&self) -> bool {
+        let has_stereo = self
+            .audio_modes
+            .iter()
+            .any(|m| m.eq_ignore_ascii_case("STEREO"));
+        let has_immersive = self.audio_modes.iter().any(|m| {
+            let u = m.to_ascii_uppercase();
+            u.contains("ATMOS") || u.contains("360")
+        }) || self
+            .media_metadata
+            .as_ref()
+            .is_some_and(|m| {
+                m.tags.iter().any(|t| {
+                    let u = t.to_ascii_uppercase();
+                    u.contains("ATMOS") || u.contains("360")
+                })
+            });
+        has_immersive && !has_stereo
+    }
+
+    pub fn resolved_audio_quality(&self) -> Option<String> {
+        let has_hires_tag = self.media_metadata.as_ref().is_some_and(|m| {
+            m.tags
+                .iter()
+                .any(|t| t == "HIRES_LOSSLESS" || t == "HI_RES_LOSSLESS")
+        });
+        if has_hires_tag {
+            Some("HI_RES_LOSSLESS".into())
+        } else {
+            self.audio_quality.clone()
+        }
+    }
+
     pub fn into_summary(self) -> Option<AlbumSummary> {
         if self.id == 0 || self.title.is_empty() {
             return None;
         }
+        let audio_quality = self.resolved_audio_quality();
+        let title = match self.version.as_deref().map(str::trim) {
+            Some(ver)
+                if !ver.is_empty()
+                    && !is_technical_edition_tag(ver)
+                    && !self
+                        .title
+                        .to_ascii_lowercase()
+                        .contains(&ver.to_ascii_lowercase()) =>
+            {
+                format!("{} ({ver})", self.title)
+            }
+            _ => self.title,
+        };
         let artist_id = self
             .artists
             .iter()
@@ -259,12 +361,12 @@ impl RawAlbum {
         };
         Some(AlbumSummary {
             id: self.id,
-            title: self.title,
+            title,
             artist_name,
             artist_id,
             cover_id: self.cover,
             release_date: self.release_date,
-            audio_quality: self.audio_quality,
+            audio_quality,
             number_of_tracks: self.number_of_tracks,
         })
     }
@@ -285,6 +387,7 @@ impl RawArtist {
 
 impl RawSearchResponse {
     pub fn into_results(self) -> SearchResults {
+        let top_hit = self.top_hit.as_ref().and_then(parse_v1_top_hit);
         SearchResults {
             tracks: self
                 .tracks
@@ -302,7 +405,32 @@ impl RawSearchResponse {
                 .artists
                 .map(|p| p.items.into_iter().filter_map(RawArtist::into_summary).collect())
                 .unwrap_or_default(),
+            top_hit,
         }
+    }
+}
+
+fn parse_v1_top_hit(val: &Value) -> Option<TopHit> {
+    let hit_type = val.get("type").and_then(Value::as_str)?;
+    let inner = val.get("value")?.clone();
+    match hit_type.to_ascii_uppercase().as_str() {
+        "TRACKS" | "TRACK" => serde_json::from_value::<RawTrack>(inner)
+            .ok()
+            .and_then(RawTrack::into_summary)
+            .map(TopHit::Track),
+        "ALBUMS" | "ALBUM" => serde_json::from_value::<RawAlbum>(inner)
+            .ok()
+            .and_then(RawAlbum::into_summary)
+            .map(TopHit::Album),
+        "ARTISTS" | "ARTIST" => serde_json::from_value::<RawArtist>(inner)
+            .ok()
+            .and_then(RawArtist::into_summary)
+            .map(TopHit::Artist),
+        "PLAYLISTS" | "PLAYLIST" => serde_json::from_value::<RawPlaylist>(inner)
+            .ok()
+            .and_then(RawPlaylist::into_summary)
+            .map(TopHit::Playlist),
+        _ => None,
     }
 }
 
@@ -632,6 +760,7 @@ pub fn parse_jsonapi_results(doc: &Value) -> SearchResults {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let audio_quality = extract_jsonapi_quality(attrs);
+        let dolby_audio = extract_jsonapi_dolby(attrs);
         let artist_rel = first_rel_id(rels, "artists");
         let artist_name = artist_rel
             .as_deref()
@@ -656,10 +785,59 @@ pub fn parse_jsonapi_results(doc: &Value) -> SearchResults {
             duration_secs,
             audio_quality,
             explicit,
+            dolby_audio,
         });
     }
 
+    // Passe 4 : résout `data.relationships.topHits.data[0]` (OpenAPI v2 `/searchResults`)
+    results.top_hit = resolve_jsonapi_top_hit(doc, &results);
+
     results
+}
+
+fn resolve_jsonapi_top_hit(doc: &Value, results: &SearchResults) -> Option<TopHit> {
+    let root = match doc.get("data") {
+        Some(Value::Object(_)) => doc.get("data"),
+        Some(Value::Array(arr)) => arr.first(),
+        _ => None,
+    }?;
+    let top_hits = root
+        .pointer("/relationships/topHits/data")
+        .and_then(Value::as_array)?;
+    for entry in top_hits {
+        let rtype = entry.get("type").and_then(Value::as_str).unwrap_or_default();
+        let id_str = entry.get("id").and_then(Value::as_str).unwrap_or_default();
+        match rtype {
+            "artists" => {
+                if let Ok(id) = id_str.parse::<u64>() {
+                    if let Some(a) = results.artists.iter().find(|x| x.id == id) {
+                        return Some(TopHit::Artist(a.clone()));
+                    }
+                }
+            }
+            "albums" => {
+                if let Ok(id) = id_str.parse::<u64>() {
+                    if let Some(a) = results.albums.iter().find(|x| x.id == id) {
+                        return Some(TopHit::Album(a.clone()));
+                    }
+                }
+            }
+            "tracks" => {
+                if let Ok(id) = id_str.parse::<u64>() {
+                    if let Some(t) = results.tracks.iter().find(|x| x.id == id) {
+                        return Some(TopHit::Track(t.clone()));
+                    }
+                }
+            }
+            "playlists" => {
+                if let Some(p) = results.playlists.iter().find(|x| x.uuid == id_str) {
+                    return Some(TopHit::Playlist(p.clone()));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn first_rel_id(rels: Option<&Value>, key: &str) -> Option<String> {
@@ -709,6 +887,36 @@ fn extract_jsonapi_quality(attrs: Option<&Value>) -> Option<String> {
         return Some("LOSSLESS".into());
     }
     None
+}
+
+fn extract_jsonapi_dolby(attrs: Option<&Value>) -> bool {
+    let Some(a) = attrs else {
+        return false;
+    };
+    let in_tags = a
+        .get("mediaTags")
+        .and_then(Value::as_array)
+        .is_some_and(|tags| {
+            tags.iter().any(|t| {
+                t.as_str().is_some_and(|s| {
+                    let u = s.to_ascii_uppercase();
+                    u.contains("DOLBY") || u.contains("ATMOS")
+                })
+            })
+        });
+    if in_tags {
+        return true;
+    }
+    a.get("audioModes")
+        .and_then(Value::as_array)
+        .is_some_and(|modes| {
+            modes.iter().any(|m| {
+                m.as_str().is_some_and(|s| {
+                    let u = s.to_ascii_uppercase();
+                    u.contains("DOLBY") || u.contains("ATMOS")
+                })
+            })
+        })
 }
 
 /// Parse une durée ISO 8601 (`PT3M5S`, `PT1H2M10S`) en secondes.

@@ -297,27 +297,115 @@ impl TidalApiClient {
         Ok(raw.into_summary())
     }
 
-    /// Charge les pistes d'un album TIDAL.
+    /// Charge les pistes d'un album TIDAL (avec pagination jusqu'à 500 pistes).
     pub async fn album_tracks(&self, album_id: u64) -> Result<Vec<TrackSummary>> {
         let sess = self.ensure_session().await?;
         let path = format!("albums/{album_id}/items");
-        let page: PagedResponse<TrackItemWrapper> = self
+        let country = sess.country_code.clone();
+        let auth = Arc::clone(&self.auth);
+
+        let raw: Vec<TrackItemWrapper> = drain_pages(100, 500, 4, move |offset, limit| {
+            let auth = Arc::clone(&auth);
+            let path = path.clone();
+            let country = country.clone();
+            async move {
+                let offset_s = offset.to_string();
+                let limit_s = limit.to_string();
+                auth.get_v1::<PagedResponse<TrackItemWrapper>>(
+                    &path,
+                    &[
+                        ("limit", &limit_s),
+                        ("offset", &offset_s),
+                        ("countryCode", &country),
+                    ],
+                )
+                .await
+                .map_err(ApiError::from)
+            }
+        })
+        .await?;
+
+        Ok(raw.into_iter().filter_map(TrackItemWrapper::into_track).collect())
+    }
+
+    /// Charge les albums similaires (OpenAPI v2 `albums/{id}/relationships/similarAlbums`
+    /// avec repli v1 `albums/{id}/similar`).
+    pub async fn similar_albums(&self, album_id: u64) -> Result<Vec<AlbumSummary>> {
+        let sess = self.ensure_session().await?;
+        let oa_path = format!("albums/{album_id}/relationships/similarAlbums");
+        if let Ok(doc) = self
             .auth
-            .get_v1(
-                &path,
+            .get_openapi_v2::<Value>(
+                &oa_path,
                 &[
-                    ("limit", "100"),
+                    (
+                        "include",
+                        "similarAlbums,similarAlbums.artists,similarAlbums.coverArt",
+                    ),
+                    ("countryCode", &sess.country_code),
+                ],
+            )
+            .await
+        {
+            let mut albums: Vec<AlbumSummary> = parse_jsonapi_results(&doc)
+                .albums
+                .into_iter()
+                .filter(|a| a.id != album_id)
+                .collect();
+            if !albums.is_empty() {
+                albums.truncate(12);
+                return Ok(albums);
+            }
+        }
+
+        let v1_path = format!("albums/{album_id}/similar");
+        if let Ok(page) = self
+            .auth
+            .get_v1::<PagedResponse<Value>>(
+                &v1_path,
+                &[
+                    ("limit", "12"),
                     ("offset", "0"),
                     ("countryCode", &sess.country_code),
                 ],
             )
-            .await?;
+            .await
+        {
+            let mut albums: Vec<AlbumSummary> = parse_album_items(&page.items)
+                .into_iter()
+                .filter(|a| a.id != album_id)
+                .collect();
+            albums.truncate(12);
+            return Ok(albums);
+        }
 
-        Ok(page
-            .items
-            .into_iter()
-            .filter_map(TrackItemWrapper::into_track)
-            .collect())
+        Ok(Vec::new())
+    }
+
+    /// Charge une radio basée sur un album : combine la radio du premier titre de l'album
+    /// avec la radio de l'artiste principal si disponible.
+    pub async fn album_radio(&self, album_id: u64) -> Result<Vec<TrackSummary>> {
+        let tracks = self.album_tracks(album_id).await.unwrap_or_default();
+        if let Some(first) = tracks.first() {
+            if let Ok(radio) = self.track_radio(first.id).await {
+                if !radio.is_empty() {
+                    return Ok(radio);
+                }
+            }
+            if let Some(artist_id) = first.artist_id {
+                if let Ok(radio) = self.artist_radio(artist_id).await {
+                    if !radio.is_empty() {
+                        return Ok(radio);
+                    }
+                }
+            }
+        }
+        if let Ok(Some(album)) = self.album_details(album_id).await {
+            if let Some(artist_id) = album.artist_id {
+                return self.artist_radio(artist_id).await;
+            }
+        }
+        Ok(Vec::new())
     }
 
     /// Charge la fiche complète d'un artiste TIDAL : profil, biographie nettoyée, top titres,
@@ -336,19 +424,19 @@ impl TidalApiClient {
         let bio_query = [("countryCode", cc)];
         let top_query = [("limit", "15"), ("offset", "0"), ("countryCode", cc)];
         let albums_query = [
-            ("limit", "30"),
+            ("limit", "100"),
             ("offset", "0"),
             ("filter", "ALBUMS"),
             ("countryCode", cc),
         ];
         let eps_query = [
-            ("limit", "30"),
+            ("limit", "50"),
             ("offset", "0"),
             ("filter", "EPSANDSINGLES"),
             ("countryCode", cc),
         ];
         let compilations_query = [
-            ("limit", "20"),
+            ("limit", "40"),
             ("offset", "0"),
             ("filter", "COMPILATIONS"),
             ("countryCode", cc),
@@ -394,13 +482,13 @@ impl TidalApiClient {
                 })
                 .unwrap_or_default(),
             albums: albums
-                .map(|page| parse_album_items(&page.items))
+                .map(|page| parse_artist_discography_albums(&page.items))
                 .unwrap_or_default(),
             eps_singles: eps_singles
-                .map(|page| parse_album_items(&page.items))
+                .map(|page| parse_artist_discography_albums(&page.items))
                 .unwrap_or_default(),
             compilations: compilations
-                .map(|page| parse_album_items(&page.items))
+                .map(|page| parse_artist_discography_albums(&page.items))
                 .unwrap_or_default(),
             similar_artists: similar
                 .map(|page| parse_artist_items(&page.items))
@@ -1292,6 +1380,88 @@ impl TidalApiClient {
         }
     }
 
+    /// Met à jour le titre et la description d'une playlist utilisateur TIDAL.
+    pub async fn update_playlist(
+        &self,
+        playlist_uuid: &str,
+        title: &str,
+        description: &str,
+    ) -> Result<()> {
+        let sess = self.ensure_session().await?;
+        let path = format!("playlists/{playlist_uuid}");
+        let etag = self
+            .auth
+            .get_v1_etag(&path, &[("countryCode", &sess.country_code)])
+            .await
+            .ok()
+            .flatten();
+        match self
+            .auth
+            .post_v1_form(
+                &path,
+                &[("countryCode", &sess.country_code)],
+                &[("title", title), ("description", description)],
+                etag.as_deref(),
+            )
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(v1_err) => {
+                let payload = serde_json::json!({
+                    "data": {
+                        "id": playlist_uuid,
+                        "type": "playlists",
+                        "attributes": {
+                            "name": title,
+                            "description": description
+                        }
+                    }
+                });
+                match self
+                    .auth
+                    .patch_openapi_v2(&path, &[("countryCode", &sess.country_code)], &payload)
+                    .await
+                {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err(ApiError::from(v1_err)),
+                }
+            }
+        }
+    }
+
+    /// Déplace une piste dans une playlist TIDAL (`from_index` -> `to_index`).
+    pub async fn move_playlist_track(
+        &self,
+        playlist_uuid: &str,
+        from_index: usize,
+        to_index: usize,
+    ) -> Result<()> {
+        if from_index == to_index {
+            return Ok(());
+        }
+        let sess = self.ensure_session().await?;
+        let pl_path = format!("playlists/{playlist_uuid}");
+        let etag = self
+            .auth
+            .get_v1_etag(&pl_path, &[("countryCode", &sess.country_code)])
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "*".into());
+        let item_path = format!("playlists/{playlist_uuid}/items/{from_index}");
+        let to_index_s = to_index.to_string();
+        self.auth
+            .post_v1_form(
+                &item_path,
+                &[("countryCode", &sess.country_code)],
+                &[("toIndex", &to_index_s)],
+                Some(&etag),
+            )
+            .await
+            .map(|_| ())
+            .map_err(ApiError::from)
+    }
+
     /// Supprime une playlist utilisateur sur le compte TIDAL.
     pub async fn delete_playlist(&self, playlist_uuid: &str) -> Result<()> {
         let sess = self.ensure_session().await?;
@@ -1866,6 +2036,73 @@ fn parse_album_items(items: &[Value]) -> Vec<AlbumSummary> {
     out
 }
 
+fn normalize_discography_title(title: &str) -> String {
+    let mut s = title.trim().to_ascii_lowercase();
+    for suffix in [
+        "(dolby atmos)",
+        "[dolby atmos]",
+        "(atmos)",
+        "(sony 360 reality audio)",
+        "(360 reality audio)",
+        "(mqa)",
+        "(clean)",
+        "(clean version)",
+        "(explicit)",
+        "(explicit version)",
+        "(edited)",
+        "(edited version)",
+    ] {
+        if let Some(stripped) = s.strip_suffix(suffix) {
+            s = stripped.trim().to_string();
+        }
+    }
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn parse_artist_discography_albums(items: &[Value]) -> Vec<AlbumSummary> {
+    let mut out: Vec<(AlbumSummary, (u8, u8, u8, u32))> = Vec::new();
+    let mut index_by_key: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    let mut seen_ids = std::collections::HashSet::new();
+
+    for item in items {
+        let payload = item.get("item").unwrap_or(item);
+        let Ok(raw) = serde_json::from_value::<RawAlbum>(payload.clone()) else {
+            continue;
+        };
+        if raw.id == 0 || !seen_ids.insert(raw.id) {
+            continue;
+        }
+        let is_immersive_only = raw.is_immersive_only();
+        let explicit = raw.explicit;
+        let Some(summary) = raw.into_summary() else {
+            continue;
+        };
+        let rank = (
+            u8::from(!is_immersive_only),
+            match summary.audio_quality.as_deref() {
+                Some("HI_RES_LOSSLESS") | Some("HIRES_LOSSLESS") => 3,
+                Some("LOSSLESS") => 2,
+                Some("HIGH") => 1,
+                _ => 0,
+            },
+            u8::from(explicit),
+            summary.number_of_tracks,
+        );
+        let key = normalize_discography_title(&summary.title);
+        if let Some(&idx) = index_by_key.get(&key) {
+            if rank > out[idx].1 {
+                out[idx] = (summary, rank);
+            }
+        } else {
+            index_by_key.insert(key, out.len());
+            out.push((summary, rank));
+        }
+    }
+
+    out.into_iter().map(|(album, _)| album).collect()
+}
+
 fn parse_artist_items(items: &[Value]) -> Vec<ArtistSummary> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -2289,7 +2526,53 @@ mod tests {
         assert_eq!(track.id, 251380837);
         assert_eq!(track.artist_name, "Daft Punk");
         assert!(track.is_hires());
+        assert!(!track.dolby_audio);
         assert_eq!(track.duration_label(), "9:04");
+
+        let dolby_payload = json!({
+            "item": {
+                "id": 251380838,
+                "title": "Within",
+                "duration": 228,
+                "explicit": false,
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["STEREO", "DOLBY_ATMOS"],
+                "mediaMetadata": { "tags": ["LOSSLESS", "HIRES_LOSSLESS", "DOLBY_ATMOS"] },
+                "artists": [{ "id": 1, "name": "Daft Punk" }],
+                "album": { "id": 10, "title": "Random Access Memories", "cover": null }
+            }
+        });
+        let dolby_track: TrackItemWrapper = serde_json::from_value(dolby_payload).unwrap();
+        let parsed = dolby_track.into_track().unwrap();
+        assert!(parsed.is_hires());
+        assert!(parsed.dolby_audio);
+    }
+
+    #[test]
+    fn track_item_wrapper_rejects_video_items_and_accepts_track_items() {
+        let video_payload = json!({
+            "type": "video",
+            "item": {
+                "id": 999111,
+                "title": "Official Music Video",
+                "duration": 240,
+                "artists": [{ "id": 1, "name": "Daft Punk" }]
+            }
+        });
+        let video_wrapped: TrackItemWrapper = serde_json::from_value(video_payload).unwrap();
+        assert!(video_wrapped.into_track().is_none());
+
+        let track_payload = json!({
+            "type": "track",
+            "item": {
+                "id": 999222,
+                "title": "Aerodynamic",
+                "duration": 207,
+                "artists": [{ "id": 1, "name": "Daft Punk" }]
+            }
+        });
+        let track_wrapped: TrackItemWrapper = serde_json::from_value(track_payload).unwrap();
+        assert_eq!(track_wrapped.into_track().map(|t| t.id), Some(999222));
     }
 
     #[test]
@@ -3059,5 +3342,110 @@ mod tests {
         assert_eq!(tracks[0].artist_id, Some(27));
         assert_eq!(tracks[0].album_id, Some(101));
         assert_eq!(tracks[0].duration_secs, 298);
+    }
+
+    #[test]
+    fn parses_top_hit_from_v1_search_and_openapi_v2_top_hits() {
+        let v1_raw: RawSearchResponse = serde_json::from_value(json!({
+            "topHit": {
+                "type": "ARTISTS",
+                "value": { "id": 27, "name": "Daft Punk", "picture": "pic-27" }
+            },
+            "artists": { "items": [{ "id": 27, "name": "Daft Punk", "picture": "pic-27" }] }
+        }))
+        .expect("v1 search response");
+        let v1_res = v1_raw.into_results();
+        assert!(matches!(
+            v1_res.top_hit,
+            Some(tidal_core::TopHit::Artist(ref a)) if a.id == 27 && a.name == "Daft Punk"
+        ));
+
+        let v2_doc = json!({
+            "data": {
+                "id": "daft punk",
+                "type": "searchResults",
+                "relationships": {
+                    "topHits": { "data": [{ "id": "101", "type": "albums" }] }
+                }
+            },
+            "included": [
+                { "id": "27", "type": "artists", "attributes": { "name": "Daft Punk" } },
+                {
+                    "id": "101",
+                    "type": "albums",
+                    "attributes": { "title": "Discovery", "numberOfItems": 14 },
+                    "relationships": {
+                        "artists": { "data": [{ "id": "27", "type": "artists" }] }
+                    }
+                }
+            ]
+        });
+        let v2_res = parse_jsonapi_results(&v2_doc);
+        assert!(matches!(
+            v2_res.top_hit,
+            Some(tidal_core::TopHit::Album(ref alb)) if alb.id == 101 && alb.title == "Discovery"
+        ));
+    }
+
+    #[test]
+    fn deduplicates_artist_discography_variants_preferring_stereo_hires_explicit() {
+        let items = vec![
+            json!({
+                "id": 1001,
+                "title": "After Hours",
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["DOLBY_ATMOS"],
+                "explicit": true,
+                "numberOfTracks": 14,
+                "releaseDate": "2020-03-20"
+            }),
+            json!({
+                "id": 1002,
+                "title": "After Hours",
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["STEREO"],
+                "mediaMetadata": { "tags": ["HIRES_LOSSLESS", "LOSSLESS"] },
+                "explicit": false,
+                "numberOfTracks": 14,
+                "releaseDate": "2020-03-20"
+            }),
+            json!({
+                "id": 1003,
+                "title": "After Hours",
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["STEREO"],
+                "mediaMetadata": { "tags": ["HIRES_LOSSLESS", "LOSSLESS"] },
+                "explicit": true,
+                "numberOfTracks": 14,
+                "releaseDate": "2020-03-20"
+            }),
+            json!({
+                "id": 1004,
+                "title": "After Hours",
+                "version": "Deluxe",
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["STEREO"],
+                "explicit": true,
+                "numberOfTracks": 18,
+                "releaseDate": "2020-03-23"
+            }),
+            json!({
+                "id": 1005,
+                "title": "After Hours (Dolby Atmos)",
+                "audioQuality": "LOSSLESS",
+                "audioModes": ["DOLBY_ATMOS"],
+                "explicit": true,
+                "numberOfTracks": 14,
+                "releaseDate": "2020-03-20"
+            }),
+        ];
+
+        let deduped = parse_artist_discography_albums(&items);
+        assert_eq!(deduped.len(), 2);
+        assert_eq!(deduped[0].id, 1003);
+        assert_eq!(deduped[0].title, "After Hours");
+        assert_eq!(deduped[0].audio_quality.as_deref(), Some("HI_RES_LOSSLESS"));
+        assert_eq!(deduped[1].id, 1004);
+        assert_eq!(deduped[1].title, "After Hours (Deluxe)");
     }
 }

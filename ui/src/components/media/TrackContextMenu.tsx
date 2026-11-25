@@ -95,12 +95,37 @@ export function TrackContextMenu({
         <ContextMenuItem
           onSelect={async () => {
             const res = await commands.playTrackRadio(track.id);
-            if (res.status === "error") toast.error(res.error);
+            if (res.status === "ok") toast.success("Radio du titre lancée");
+            else toast.error(res.error);
           }}
         >
           <Radio className="h-3.5 w-3.5" />
           Lancer la radio du titre
         </ContextMenuItem>
+        {track.album_id && (
+          <ContextMenuItem
+            onSelect={async () => {
+              const res = await commands.playAlbumRadio(track.album_id!);
+              if (res.status === "ok") toast.success("Radio de l'album lancée");
+              else toast.error(res.error);
+            }}
+          >
+            <Radio className="h-3.5 w-3.5" />
+            Lancer la radio de l&apos;album
+          </ContextMenuItem>
+        )}
+        {track.artist_id && (
+          <ContextMenuItem
+            onSelect={async () => {
+              const res = await commands.playArtistRadio(track.artist_id!);
+              if (res.status === "ok") toast.success("Radio de l'artiste lancée");
+              else toast.error(res.error);
+            }}
+          >
+            <Radio className="h-3.5 w-3.5" />
+            Lancer la radio de l&apos;artiste
+          </ContextMenuItem>
+        )}
 
         <ContextMenuSeparator />
 

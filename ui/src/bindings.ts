@@ -157,9 +157,25 @@ async playArtistRadio(artistId: number) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async playAlbumRadio(albumId: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("play_album_radio", { albumId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async refreshLibrary() : Promise<Result<LibrarySyncPayload, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("refresh_library") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async refreshDiscover() : Promise<Result<TrackSummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("refresh_discover") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -224,6 +240,46 @@ async addTrackToPlaylist(playlistUuid: string, trackId: number) : Promise<Result
 async removeTrackFromPlaylist(playlistUuid: string, index: number, trackId: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("remove_track_from_playlist", { playlistUuid, index, trackId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updatePlaylist(playlistUuid: string, title: string, description: string) : Promise<Result<PlaylistSummary, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_playlist", { playlistUuid, title, description }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async movePlaylistTrack(playlistUuid: string, fromIndex: number, toIndex: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("move_playlist_track", { playlistUuid, fromIndex, toIndex }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async duplicatePlaylist(playlistUuid: string, newTitle: string | null) : Promise<Result<PlaylistSummary, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_playlist", { playlistUuid, newTitle }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportPlaylist(playlistUuid: string, format: PlaylistExportFormat) : Promise<Result<PlaylistExportPayload, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_playlist", { playlistUuid, format }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async importPlaylist(title: string, content: string, format: PlaylistExportFormat) : Promise<Result<PlaylistImportResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_playlist", { title, content, format }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -413,9 +469,25 @@ async isWindowMaximized() : Promise<Result<boolean, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async setAlwaysOnTop(alwaysOnTop: boolean) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_always_on_top", { alwaysOnTop }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async setCompactMode(compact: boolean) : Promise<Result<boolean, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_compact_mode", { compact }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async quitApp() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("quit_app") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -447,7 +519,7 @@ export type ActivityPeriod = "AllTime" | "Last30Days" | "Last7Days"
  * Statistique d'écoute agrégée pour un titre.
  */
 export type ActivityTrackStat = { track: TrackSummary; play_count: number; total_secs: number }
-export type AlbumDetailData = { album: AlbumSummary; tracks: TrackSummary[]; is_favorite: boolean }
+export type AlbumDetailData = { album: AlbumSummary; tracks: TrackSummary[]; is_favorite: boolean; similar_albums: AlbumSummary[] }
 /**
  * Résumé d'un album TIDAL.
  */
@@ -557,7 +629,11 @@ export type AudioQuality =
  * FLAC jusqu'à 24-bit / 192 kHz (MPEG-DASH Hi-Res)
  */
 "HiResLossless"
-export type BootstrapState = { authenticated: boolean; user_id: number | null; country_code: string | null; preferences: AppPreferences; devices: AudioDeviceDescriptor[]; playback_state: PlaybackState; active_format: StreamFormatInfo | null; current_track: TrackSummary | null; current_palette: CoverPalette; queue: TrackSummary[]; queue_index: number | null; position_ms: number; duration_ms: number; favorites: TrackSummary[]; favorite_ids: number[]; playlists: PlaylistSummary[]; playlist_folders: PlaylistFolder[]; favorite_albums: AlbumSummary[]; favorite_album_ids: number[]; favorite_artists: ArtistSummary[]; favorite_artist_ids: number[]; user_mixes: MixSummary[]; discover_tracks: TrackSummary[]; recent_tracks: TrackSummary[]; recent_searches: string[]; explore_hub: ExploreHubData | null; lastfm: LastFmStatus }
+export type BootstrapState = { authenticated: boolean; user_id: number | null; country_code: string | null; preferences: AppPreferences; devices: AudioDeviceDescriptor[]; playback_state: PlaybackState; active_format: StreamFormatInfo | null; current_track: TrackSummary | null; current_palette: CoverPalette; queue: TrackSummary[]; queue_index: number | null; position_ms: number; duration_ms: number; favorites: TrackSummary[]; favorite_ids: number[]; playlists: PlaylistSummary[]; playlist_folders: PlaylistFolder[]; favorite_albums: AlbumSummary[]; favorite_album_ids: number[]; favorite_artists: ArtistSummary[]; favorite_artist_ids: number[]; user_mixes: MixSummary[]; discover_tracks: TrackSummary[]; 
+/**
+ * `true` tant que la sélection d'accueil n'a pas été renouvelée pour la session courante.
+ */
+discover_renewal_pending: boolean; recent_tracks: TrackSummary[]; recent_searches: string[]; explore_hub: ExploreHubData | null; lastfm: LastFmStatus }
 /**
  * Palette harmonisée extraite d'une pochette pour le fond ambiant OLED Dark
  * et la surbrillance multi-couleurs de la piste active.
@@ -615,10 +691,13 @@ bits_per_sample: number }
  */
 export type PlaybackState = "Stopped" | "Buffering" | "Playing" | "Paused" | { Error: string }
 export type PlaylistDetailData = { playlist: PlaylistSummary; tracks: TrackSummary[]; tidal_indices: number[] }
+export type PlaylistExportFormat = "Csv" | "M3u8"
+export type PlaylistExportPayload = { filename: string; content: string; mime_type: string }
 /**
  * Dossier de playlists TIDAL regroupant plusieurs playlists.
  */
 export type PlaylistFolder = { id: string; name: string; total_number_of_items?: number; playlists?: PlaylistSummary[] }
+export type PlaylistImportResult = { playlist: PlaylistSummary; imported_count: number; unmatched: string[] }
 /**
  * Résumé d'une playlist TIDAL.
  */
@@ -634,7 +713,7 @@ export type ReplayGainMode = "Off" | "Track" | "Album"
 /**
  * Résultats consolidés d'une recherche catalogue TIDAL.
  */
-export type SearchResults = { tracks: TrackSummary[]; albums: AlbumSummary[]; playlists: PlaylistSummary[]; artists: ArtistSummary[] }
+export type SearchResults = { tracks: TrackSummary[]; albums: AlbumSummary[]; playlists: PlaylistSummary[]; artists: ArtistSummary[]; top_hit?: TopHit | null }
 /**
  * Suggestions instantanées d'autocomplétion (requêtes + résultats directs).
  */
@@ -672,6 +751,10 @@ is_bit_perfect: boolean;
  */
 device_name: string }
 /**
+ * Meilleur résultat mis en avant lors d'une recherche catalogue (`topHit` v1 / `topHits` OpenAPI v2).
+ */
+export type TopHit = { kind: "Track"; value: TrackSummary } | { kind: "Album"; value: AlbumSummary } | { kind: "Artist"; value: ArtistSummary } | { kind: "Playlist"; value: PlaylistSummary }
+/**
  * Groupe de contributeurs d'un même rôle (production, mixage, écriture...).
  */
 export type TrackCreditGroup = { role: string; contributors: string[] }
@@ -694,7 +777,7 @@ artist_id?: number | null; album_id?: number | null; album_title: string;
 /**
  * UUID de pochette TIDAL (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
  */
-cover_id: string | null; duration_secs: number; audio_quality: string | null; explicit: boolean }
+cover_id: string | null; duration_secs: number; audio_quality: string | null; explicit: boolean; dolby_audio?: boolean }
 export type TrayUiAction = "ShowWindow" | "QuitApp"
 /**
  * Police de caractères de l'interface utilisateur.
