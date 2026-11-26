@@ -492,6 +492,38 @@ async quitApp() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getAppUpdateStatus() : Promise<Result<AppUpdateInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_app_update_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async checkForUpdates() : Promise<Result<AppUpdateInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_for_updates") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadUpdate() : Promise<Result<AppUpdateInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async applyUpdateAndRestart() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_update_and_restart") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -499,9 +531,11 @@ async quitApp() : Promise<Result<null, string>> {
 
 
 export const events = __makeEvents__<{
-engineEventNotice: EngineEventNotice
+engineEventNotice: EngineEventNotice,
+updateProgressNotice: UpdateProgressNotice
 }>({
-engineEventNotice: "engine-event-notice"
+engineEventNotice: "engine-event-notice",
+updateProgressNotice: "update-progress-notice"
 })
 
 /** user-defined constants **/
@@ -584,6 +618,7 @@ lastfm_enabled?: boolean;
  * Police de caractères de l'interface (Inter actuelle, Season Mix, DM Sans, Plus Jakarta Sans).
  */
 ui_font?: UiFontFamily }
+export type AppUpdateInfo = { current_version: string; is_installed: boolean; update_available: boolean; pending_restart: boolean; available_version: string | null; release_notes: string | null; is_delta: boolean; download_size_bytes: number | null; source_url: string }
 /**
  * Fiche complète d'un artiste (profil, biographie, discographie et artistes similaires),
  * assemblée depuis les endpoints TIDAL v1 (`artists/{id}`, `/bio`, `/toptracks`, `/albums`, `/similar`).
@@ -799,6 +834,7 @@ export type UiFontFamily =
  * Plus Jakarta Sans.
  */
 "PlusJakartaSans"
+export type UpdateProgressNotice = { percent: number; stage: string; version: string | null }
 
 /** tauri-specta globals **/
 

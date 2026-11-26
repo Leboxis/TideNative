@@ -88,4 +88,75 @@ fn export_typescript_bindings() {
     assert!(content.contains("getBootstrapState"));
     assert!(content.contains("EngineEventNotice"));
     assert!(content.contains("CoverPalette"));
+    assert!(content.contains("checkForUpdates"));
+    assert!(content.contains("downloadUpdate"));
+    assert!(content.contains("applyUpdateAndRestart"));
+    assert!(content.contains("AppUpdateInfo"));
+    assert!(content.contains("UpdateProgressNotice"));
+}
+
+#[test]
+fn velopack_updater_parses_manifest_github_url_and_selects_newest_release() {
+    use app_tauri::updater::{
+        DEFAULT_UPDATE_SOURCE_URL, VelopackAsset, VelopackInstall, parse_github_repo,
+        parse_sq_version_xml, select_update_plan,
+    };
+    use semver::Version;
+    use std::path::PathBuf;
+
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>TideNative</id>
+    <version>0.1.0</version>
+    <channel>win</channel>
+  </metadata>
+</package>"#;
+    let (id, version, channel) = parse_sq_version_xml(xml).expect("parse sq.version");
+    assert_eq!(id, "TideNative");
+    assert_eq!(version, Version::new(0, 1, 0));
+    assert_eq!(channel, "win");
+
+    assert_eq!(
+        parse_github_repo("https://github.com/Leboxis/TideNative"),
+        Some(("Leboxis".to_string(), "TideNative".to_string()))
+    );
+    assert_eq!(parse_github_repo("https://updates.example.com"), None);
+
+    let install = VelopackInstall {
+        root_dir: PathBuf::from("C:/App"),
+        packages_dir: PathBuf::from("C:/App/packages"),
+        update_exe: PathBuf::from("C:/App/Update.exe"),
+        app_id: "TideNative".to_string(),
+        version: Version::new(0, 1, 0),
+        channel: "win".to_string(),
+    };
+    let assets = vec![
+        VelopackAsset {
+            PackageId: "TideNative".into(),
+            Version: "0.1.0".into(),
+            Type: "Full".into(),
+            FileName: "TideNative-0.1.0-full.nupkg".into(),
+            SHA1: String::new(),
+            SHA256: String::new(),
+            Size: 1000,
+            NotesMarkdown: String::new(),
+            download_url: Some("https://example.com/0.1.0".into()),
+        },
+        VelopackAsset {
+            PackageId: "TideNative".into(),
+            Version: "0.2.0".into(),
+            Type: "Full".into(),
+            FileName: "TideNative-0.2.0-full.nupkg".into(),
+            SHA1: String::new(),
+            SHA256: String::new(),
+            Size: 2000,
+            NotesMarkdown: "Nouveautés 0.2.0".into(),
+            download_url: Some("https://example.com/0.2.0".into()),
+        },
+    ];
+    let plan = select_update_plan(&install, &assets, DEFAULT_UPDATE_SOURCE_URL.into())
+        .expect("select 0.2.0 update");
+    assert_eq!(plan.target.Version, "0.2.0");
+    assert_eq!(plan.target.NotesMarkdown, "Nouveautés 0.2.0");
 }

@@ -1,4 +1,14 @@
-import { FolderOpen, LogOut, RefreshCw, ShieldCheck, Type } from "lucide-react";
+import {
+  Download,
+  FolderOpen,
+  LogOut,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Type,
+} from "lucide-react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   type AppPreferences,
@@ -19,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { UI_FONT_STACKS, usePlaybackStore } from "@/stores/playbackStore";
+import { useUpdaterStore } from "@/stores/updaterStore";
 
 const QUALITY_OPTIONS: { value: AudioQuality; label: string }[] = [
   { value: "HiResLossless", label: "MAX — Hi-Res FLAC (24-bit / 192 kHz)" },
@@ -69,6 +80,20 @@ export function AudioSettingsView() {
   const userId = usePlaybackStore((s) => s.userId);
   const countryCode = usePlaybackStore((s) => s.countryCode);
   const currentFont: UiFontFamily = preferences.ui_font ?? "Default";
+
+  const updateInfo = useUpdaterStore((s) => s.info);
+  const checkingUpdate = useUpdaterStore((s) => s.checking);
+  const downloadingUpdate = useUpdaterStore((s) => s.downloading);
+  const downloadPercent = useUpdaterStore((s) => s.downloadPercent);
+  const updateError = useUpdaterStore((s) => s.error);
+  const loadUpdateStatus = useUpdaterStore((s) => s.loadStatus);
+  const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+  const downloadUpdate = useUpdaterStore((s) => s.downloadUpdate);
+  const applyAndRestart = useUpdaterStore((s) => s.applyAndRestart);
+
+  useEffect(() => {
+    void loadUpdateStatus();
+  }, [loadUpdateStatus]);
 
   const patchPrefs = async (patch: Partial<AppPreferences>) => {
     const next: AppPreferences = { ...preferences, ...patch };
@@ -354,6 +379,96 @@ export function AudioSettingsView() {
           checked={preferences.allow_ai_content ?? false}
           onCheckedChange={(checked) => void patchPrefs({ allow_ai_content: checked })}
         />
+      </section>
+
+      {/* Automatic Updates (Velopack) */}
+      <section className="card-oled rounded-2xl p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[#33F3FF]" />
+            <div>
+              <h2 className="text-sm font-semibold text-white">Mises à jour automatiques</h2>
+              <p className="text-xs text-white/50 tabular-nums">
+                Version installée : v{updateInfo?.current_version ?? "0.1.0"}
+                {updateInfo?.is_installed
+                  ? " • Installateur Velopack actif"
+                  : " • Mode portable / développement"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {updateInfo?.pending_restart && updateInfo.available_version ? (
+              <Button size="sm" onClick={() => void applyAndRestart()}>
+                <RotateCcw className="h-3.5 w-3.5" />
+                Redémarrer vers v{updateInfo.available_version}
+              </Button>
+            ) : updateInfo?.update_available && updateInfo.available_version ? (
+              <Button
+                size="sm"
+                disabled={downloadingUpdate}
+                onClick={() => void downloadUpdate()}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {downloadingUpdate
+                  ? `Téléchargement ${downloadPercent} %`
+                  : `Télécharger v${updateInfo.available_version}`}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={checkingUpdate || downloadingUpdate}
+                onClick={() => void checkForUpdates({ silent: false })}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${checkingUpdate ? "animate-spin" : ""}`} />
+                {checkingUpdate ? "Vérification..." : "Rechercher une mise à jour"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {downloadingUpdate && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-white/60 tabular-nums">
+              <span>
+                {updateInfo?.is_delta
+                  ? "Téléchargement de la mise à jour delta..."
+                  : "Téléchargement de la mise à jour..."}
+              </span>
+              <span>{downloadPercent} %</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-[#33F3FF] transition-[width] duration-150"
+                style={{ width: `${downloadPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {updateInfo?.update_available && updateInfo.available_version && !downloadingUpdate && (
+          <div className="rounded-xl border border-[#33F3FF]/25 bg-[#33F3FF]/[0.06] p-3 text-xs text-white/80 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-[#33F3FF]">
+                {updateInfo.pending_restart
+                  ? `Version v${updateInfo.available_version} prête à être appliquée`
+                  : `Nouvelle version v${updateInfo.available_version} disponible`}
+              </span>
+              {updateInfo.download_size_bytes ? (
+                <span className="text-white/50 tabular-nums">
+                  {updateInfo.is_delta ? "Delta • " : ""}
+                  {(updateInfo.download_size_bytes / (1024 * 1024)).toFixed(1)} Mo
+                </span>
+              ) : null}
+            </div>
+            {updateInfo.release_notes && (
+              <p className="text-white/60 whitespace-pre-line">{updateInfo.release_notes}</p>
+            )}
+          </div>
+        )}
+
+        {updateError && <p className="text-xs text-red-400">{updateError}</p>}
       </section>
 
       {/* Account & Data */}

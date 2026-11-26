@@ -2,6 +2,7 @@ pub mod commands;
 pub mod login_window;
 pub mod protocol;
 pub mod telemetry;
+pub mod updater;
 
 #[cfg(debug_assertions)]
 use specta_typescript::{BigIntExportBehavior, Typescript};
@@ -33,6 +34,7 @@ pub struct AppState {
     pub has_tray: AtomicBool,
     pub telemetry_cancel: Mutex<Option<Arc<AtomicBool>>>,
     pub saved_window: Mutex<Option<SavedWindowState>>,
+    pub updater: updater::UpdaterState,
 }
 
 pub fn build_specta() -> SpectaBuilder<tauri::Wry> {
@@ -99,8 +101,12 @@ pub fn build_specta() -> SpectaBuilder<tauri::Wry> {
             commands::window::set_always_on_top,
             commands::window::set_compact_mode,
             commands::window::quit_app,
+            commands::updater::get_app_update_status,
+            commands::updater::check_for_updates,
+            commands::updater::download_update,
+            commands::updater::apply_update_and_restart,
         ])
-        .events(collect_events![EngineEventNotice])
+        .events(collect_events![EngineEventNotice, updater::UpdateProgressNotice])
 }
 
 fn build_tray_icon_rgba() -> (Vec<u8>, u32, u32) {
@@ -208,6 +214,7 @@ pub fn run() {
         has_tray: AtomicBool::new(false),
         telemetry_cancel: Mutex::new(None),
         saved_window: Mutex::new(None),
+        updater: updater::UpdaterState::default(),
     };
 
     fn raw_telemetry_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {

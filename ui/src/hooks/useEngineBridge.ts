@@ -4,6 +4,7 @@ import { commands, events } from "@/bindings";
 import { telemetryRuntime } from "@/lib/telemetry";
 import { useLibraryStore } from "@/stores/libraryStore";
 import { usePlaybackStore } from "@/stores/playbackStore";
+import { useUpdaterStore } from "@/stores/updaterStore";
 
 export function useEngineBridge() {
   const hydratePlayback = usePlaybackStore((s) => s.hydrate);
@@ -18,6 +19,11 @@ export function useEngineBridge() {
   const hydrateLibrary = useLibraryStore((s) => s.hydrate);
   const applySync = useLibraryStore((s) => s.applySync);
   const setInitialSyncPending = useLibraryStore((s) => s.setInitialSyncPending);
+  const setUpdateProgress = useUpdaterStore((s) => s.setProgress);
+  const loadUpdateStatus = useUpdaterStore((s) => s.loadStatus);
+  const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+  const downloadUpdate = useUpdaterStore((s) => s.downloadUpdate);
+  const applyAndRestart = useUpdaterStore((s) => s.applyAndRestart);
 
   // Reveal the frameless OLED window immediately after React's initial commit.
   // Never gate on requestAnimationFrame: WebView2 suspends rAF while HWND is hidden.
@@ -27,6 +33,66 @@ export function useEngineBridge() {
     }, 16);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let unlistenUpdate: (() => void) | null = null;
+
+    void events.updateProgressNotice
+      .listen((ev) => {
+        if (!cancelled) {
+          setUpdateProgress(ev.payload.percent, ev.payload.stage);
+        }
+      })
+      .then((stop) => {
+        if (cancelled) {
+          stop();
+        } else {
+          unlistenUpdate = stop;
+        }
+      });
+
+    const timer = window.setTimeout(() => {
+      void loadUpdateStatus().then(async (status) => {
+        if (cancelled || !status?.is_installed) return;
+        if (status.pending_restart && status.available_version) {
+          toast.success(`TideNative v${status.available_version} prête à installer`, {
+            duration: 10000,
+            action: {
+              label: "Redémarrer",
+              onClick: () => void applyAndRestart(),
+            },
+          });
+          return;
+        }
+        const remote = await checkForUpdates({ silent: true });
+        if (cancelled || !remote) return;
+        if (remote.pending_restart && remote.available_version) {
+          toast.success(`TideNative v${remote.available_version} prête à installer`, {
+            duration: 10000,
+            action: {
+              label: "Redémarrer",
+              onClick: () => void applyAndRestart(),
+            },
+          });
+        } else if (remote.update_available && remote.available_version) {
+          toast.info(`Mise à jour TideNative v${remote.available_version} disponible`, {
+            duration: 10000,
+            action: {
+              label: "Télécharger",
+              onClick: () => void downloadUpdate(),
+            },
+          });
+        }
+      });
+    }, 3500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      unlistenUpdate?.();
+    };
+  }, [setUpdateProgress, loadUpdateStatus, checkForUpdates, downloadUpdate, applyAndRestart]);
 
   useEffect(() => {
     let cancelled = false;
